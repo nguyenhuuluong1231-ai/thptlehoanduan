@@ -1,5 +1,6 @@
 // Chỉnh dự án Android do Capacitor sinh ra: tên ứng dụng "Tư vấn tâm lý học đường",
-// quyền camera / vị trí / ảnh, cho phép http/https, biểu tượng app theo logo trường, số phiên bản.
+// quyền camera / vị trí / ảnh, cho phép http/https, biểu tượng app theo logo trường,
+// chữ ký số cố định (tránh lỗi INSTALL_FAILED_UPDATE_INCOMPATIBLE khi cài đè bản mới).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,13 +56,24 @@ const bg = path.join(resDst, 'values', 'ic_launcher_background.xml');
 if (fs.existsSync(bg)) fs.writeFileSync(bg, fs.readFileSync(bg, 'utf8').replace(/#[0-9A-Fa-f]{6,8}/, '#FFFFFF'));
 console.log(`✓ Đã chép ${icons} tệp biểu tượng`);
 
-// 3) Số phiên bản theo package.json
+// 3) Số phiên bản & Chữ ký cố định (lehoan-release.keystore)
+const ksSrc = path.join(mobile, 'lehoan-release.keystore');
+const ksDst = path.join(app, 'lehoan-release.keystore');
+if (fs.existsSync(ksSrc)) {
+  fs.copyFileSync(ksSrc, ksDst);
+}
 const gradle = path.join(app, 'build.gradle');
 if (fs.existsSync(gradle)) {
   const v = JSON.parse(fs.readFileSync(path.join(mobile, 'package.json'), 'utf8')).version;
   const code = v.split('.').reduce((a, n) => a * 100 + Number(n || 0), 0) || 1;
   let g = fs.readFileSync(gradle, 'utf8');
   g = g.replace(/versionCode \d+/, `versionCode ${code}`).replace(/versionName "[^"]*"/, `versionName "${v}"`);
+  if (fs.existsSync(ksDst) && !g.includes('lehoan-release.keystore')) {
+    g = g.replace(
+      /buildTypes\s*\{/,
+      `signingConfigs {\n        debug {\n            storeFile file('lehoan-release.keystore')\n            storePassword 'lehoan2026'\n            keyAlias 'lehoan'\n            keyPassword 'lehoan2026'\n            v1SigningEnabled true\n            v2SigningEnabled true\n        }\n    }\n    buildTypes {`
+    );
+  }
   fs.writeFileSync(gradle, g);
-  console.log(`✓ Phiên bản ${v} (${code})`);
+  console.log(`✓ Phiên bản ${v} (${code}) kèm chữ ký số cố định`);
 }
