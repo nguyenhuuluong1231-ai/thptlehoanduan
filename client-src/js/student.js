@@ -33,7 +33,7 @@ const NAV = [
     { id: 'news', label: 'Bản tin tuyên truyền', icon: 'news' },
   ] },
   { group: 'Trí tuệ nhân tạo', items: [
-    { id: 'scam', label: 'Tra cứu lừa đảo AI', icon: 'shieldCheck', module: 'scam' },
+    { id: 'scam', label: 'Tra cứu lừa đảo', icon: 'shieldCheck', module: 'scam' },
     { id: 'ai', label: 'Trợ lý học đường AI', icon: 'bot', module: 'aiChat' },
     { id: 'app-guide', label: 'Hướng dẫn tải App', icon: 'smartphone' },
     { id: 'about', label: 'Giới thiệu trang web', icon: 'info' },
@@ -444,7 +444,7 @@ function bindPager(pager, dots, { step } = {}) {
 function homeCompact(view, d, meta) {
   const u = d.user, s = S.settings, moods = meta.moods;
   const items = [
-    ['counseling', 'Tư vấn', 'heartHand'], ['report', 'Tố giác', 'shieldAlert'], ['scam', 'Lừa đảo AI', 'shieldCheck'], ['ai', 'Trợ lý AI', 'bot'],
+    ['counseling', 'Tư vấn', 'heartHand'], ['report', 'Tố giác', 'shieldAlert'], ['scam', 'Tra cứu lừa đảo', 'shieldCheck'], ['ai', 'Trợ lý AI', 'bot'],
     ['school-chat', 'Chat chung', 'chats'], ['teacher-chat', 'Giáo viên', 'message'], ['mood', 'Cảm xúc', 'smile'], ['quiz', 'Trắc nghiệm', 'trophy'],
     ['teacher-list', 'DS Giáo viên', 'school'], ['counsel-team', 'Tổ tâm lý', 'users'], ['survey', 'Khảo sát', 'clipboardCheck'], ['handbook', 'Cẩm nang', 'bookOpen'], ['app-guide', 'Tải App', 'smartphone'], ['profile', 'Cá nhân', 'user'], ['news', 'Bản tin', 'news'],
   ].filter(([id]) => enabled(ALL.find(a => a.id === id) || {}));

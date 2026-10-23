@@ -48,7 +48,7 @@ const ADMIN_NAV = [
 ] },
 { group: _lhD("QUkgJiBu4buZaSBkdW5n"), items: [
 { id: _lhD("YWk="), label: _lhD("QUkgR3VhcmQgJiBj4bqjbmggYsOhbw=="), icon: _lhD("c2lyZW4="), count: _lhD("YWxlcnRz") },
-{ id: _lhD("c2NhbQ=="), label: _lhD("VHJhIGPhu6l1IGzhu6thIMSR4bqjbyBBSQ=="), icon: _lhD("c2hpZWxkQ2hlY2s=") },
+{ id: _lhD("c2NhbQ=="), label: _lhD("VHJhIGPhu6l1IGzhu6thIMSR4bqjbw=="), icon: _lhD("c2hpZWxkQ2hlY2s=") },
 { id: _lhD("YWktY2hhdA=="), label: _lhD("VHLhu6MgbMO9IGjhu41jIMSRxrDhu51uZyBBSQ=="), icon: _lhD("Ym90") },
 { id: _lhD("Y29udGVudA=="), label: _lhD("Q+G6qW0gbmFuZyAmIGLhuqNuIHRpbg=="), icon: _lhD("Ym9va09wZW4=") },
 { id: _lhD("YnJvYWRjYXN0"), label: _lhD("UGjDoXQgdGjDtG5nIGLDoW8="), icon: _lhD("bWVnYXBob25l") },

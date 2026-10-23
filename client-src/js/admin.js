@@ -56,7 +56,7 @@ const ADMIN_NAV = [
   ] },
   { group: 'AI & nội dung', items: [
     { id: 'ai', label: 'AI Guard & cảnh báo', icon: 'siren', count: 'alerts' },
-    { id: 'scam', label: 'Tra cứu lừa đảo AI', icon: 'shieldCheck' },
+    { id: 'scam', label: 'Tra cứu lừa đảo', icon: 'shieldCheck' },
     { id: 'ai-chat', label: 'Trợ lý học đường AI', icon: 'bot' },
     { id: 'content', label: 'Cẩm nang & bản tin', icon: 'bookOpen' },
     { id: 'broadcast', label: 'Phát thông báo', icon: 'megaphone' },

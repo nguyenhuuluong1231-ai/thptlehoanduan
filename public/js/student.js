@@ -28,7 +28,7 @@ const NAV = [
 { id: _lhD("bmV3cw=="), label: _lhD("QuG6o24gdGluIHR1ecOqbiB0cnV54buBbg=="), icon: _lhD("bmV3cw==") },
 ] },
 { group: _lhD("VHLDrSB0deG7hyBuaMOibiB04bqhbw=="), items: [
-{ id: _lhD("c2NhbQ=="), label: _lhD("VHJhIGPhu6l1IGzhu6thIMSR4bqjbyBBSQ=="), icon: _lhD("c2hpZWxkQ2hlY2s="), module: _lhD("c2NhbQ==") },
+{ id: _lhD("c2NhbQ=="), label: _lhD("VHJhIGPhu6l1IGzhu6thIMSR4bqjbw=="), icon: _lhD("c2hpZWxkQ2hlY2s="), module: _lhD("c2NhbQ==") },
 { id: _lhD("YWk="), label: _lhD("VHLhu6MgbMO9IGjhu41jIMSRxrDhu51uZyBBSQ=="), icon: _lhD("Ym90"), module: _lhD("YWlDaGF0") },
 { id: _lhD("YXBwLWd1aWRl"), label: _lhD("SMaw4bubbmcgZOG6q24gdOG6o2kgQXBw"), icon: _lhD("c21hcnRwaG9uZQ==") },
 { id: _lhD("YWJvdXQ="), label: _lhD("R2nhu5tpIHRoaeG7h3UgdHJhbmcgd2Vi"), icon: _lhD("aW5mbw==") },
@@ -316,7 +316,7 @@ show();
 function homeCompact(view, d, meta) {
 const u = d.user, s = S.settings, moods = meta.moods;
 const items = [
-[_lhD("Y291bnNlbGluZw=="), _lhD("VMawIHbhuqVu"), _lhD("aGVhcnRIYW5k")], [_lhD("cmVwb3J0"), _lhD("VOG7kSBnacOhYw=="), _lhD("c2hpZWxkQWxlcnQ=")], [_lhD("c2NhbQ=="), _lhD("TOG7q2EgxJHhuqNvIEFJ"), _lhD("c2hpZWxkQ2hlY2s=")], [_lhD("YWk="), _lhD("VHLhu6MgbMO9IEFJ"), _lhD("Ym90")],
+[_lhD("Y291bnNlbGluZw=="), _lhD("VMawIHbhuqVu"), _lhD("aGVhcnRIYW5k")], [_lhD("cmVwb3J0"), _lhD("VOG7kSBnacOhYw=="), _lhD("c2hpZWxkQWxlcnQ=")], [_lhD("c2NhbQ=="), _lhD("VHJhIGPhu6l1IGzhu6thIMSR4bqjbw=="), _lhD("c2hpZWxkQ2hlY2s=")], [_lhD("YWk="), _lhD("VHLhu6MgbMO9IEFJ"), _lhD("Ym90")],
 [_lhD("c2Nob29sLWNoYXQ="), _lhD("Q2hhdCBjaHVuZw=="), _lhD("Y2hhdHM=")], [_lhD("dGVhY2hlci1jaGF0"), _lhD("R2nDoW8gdmnDqm4="), _lhD("bWVzc2FnZQ==")], [_lhD("bW9vZA=="), _lhD("Q+G6o20geMO6Yw=="), _lhD("c21pbGU=")], [_lhD("cXVpeg=="), _lhD("VHLhuq9jIG5naGnhu4dt"), _lhD("dHJvcGh5")],
 [_lhD("dGVhY2hlci1saXN0"), _lhD("RFMgR2nDoW8gdmnDqm4="), _lhD("c2Nob29s")], [_lhD("Y291bnNlbC10ZWFt"), _lhD("VOG7lSB0w6JtIGzDvQ=="), _lhD("dXNlcnM=")], [_lhD("c3VydmV5"), _lhD("S2jhuqNvIHPDoXQ="), _lhD("Y2xpcGJvYXJkQ2hlY2s=")], [_lhD("aGFuZGJvb2s="), _lhD("Q+G6qW0gbmFuZw=="), _lhD("Ym9va09wZW4=")], [_lhD("YXBwLWd1aWRl"), _lhD("VOG6o2kgQXBw"), _lhD("c21hcnRwaG9uZQ==")], [_lhD("cHJvZmlsZQ=="), _lhD("Q8OhIG5ow6Ju"), _lhD("dXNlcg==")], [_lhD("bmV3cw=="), _lhD("QuG6o24gdGlu"), _lhD("bmV3cw==")],
 ].filter(([id]) => enabled(ALL.find(a => a.id === id) || {}));
