@@ -1,9 +1,9 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkq4erg';
-import { icon, drumArt, moodFace } from './core/icons.js?v=mvkq4erg';
-import { openCamera } from './core/camera.js?v=mvkq4erg';
+import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkqq6wf';
+import { icon, drumArt, moodFace } from './core/icons.js?v=mvkqq6wf';
+import { openCamera } from './core/camera.js?v=mvkqq6wf';
 import { $, $$, esc, toast, modal, confirmDialog, drawer, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, gauge, cover, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkq4erg';
+fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkqq6wf';
 setPortal(_lhD("c3R1ZGVudA=="));
 initTheme(); initDevToolsGuard();
 const S = { user: null, settings: null, unread: 0, badges: null, cleanups: [] };
@@ -42,7 +42,7 @@ const enabled = (it) => !it.module || S.settings?.modules?.[it.module] !== false
 const go = (page) => { if (location.hash !== _lhD("Iw==") + page) location.hash = page; else render(); };
 const studentLoginUrl = () => (window.self !== window.top || isNativeApp() || getMode() !== _lhD("c2VydmVy") ? _lhD("Li8=") : _lhD("L2xvZ2luaG9jaW5o"));
 async function boot() {
-root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmdyaWQ7cGxhY2UtaXRlbXM6Y2VudGVyIj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MjIwcHg7aGVpZ2h0OjE0cHgiPjwvZGl2PjwvZGl2Pg==");
+root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();
 if (!session.token) return (location.href = studentLoginUrl());
 try {
@@ -82,7 +82,7 @@ enterApp();
 }
 function gateCompleteProfile() {
 document.body.classList.remove(_lhD("aGFzLXRhYmJhcg=="));
-root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmdyaWQ7cGxhY2UtaXRlbXM6Y2VudGVyIj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MjIwcHg7aGVpZ2h0OjE0cHgiPjwvZGl2PjwvZGl2Pg==");
+root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 api.get(_lhD("YXBpL2NsYXNzZXM=")).then(({ items }) => {
 root.innerHTML = `${_lhD("CiAgICA8ZGl2IHN0eWxlPSJtaW4taGVpZ2h0OjEwMHZoO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7cGFkZGluZzoyNHB4Ij4KICAgICAgPGZvcm0gaWQ9ImdwZiIgY2xhc3M9ImNhcmQiIHN0eWxlPSJtYXgtd2lkdGg6NDYwcHg7d2lkdGg6MTAwJSI+CiAgICAgICAgPGRpdiBjbGFzcz0iY2FyZC1oZWFkIj48aDI+")}${icon(_lhD("dXNlcg=="))}${_lhD("IEhvw6BuIHThuqV0IGjhu5Mgc8ahPC9oMj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJjYXJkLWJvZHkgc3RhY2siPgogICAgICAgICAgPHAgY2xhc3M9InNtYWxsIG11dGVkIj5Uw6BpIGtob+G6o24gY+G7p2EgYuG6oW4gY2jGsGEgY8OzIMSR4bqneSDEkeG7pyB0aMO0bmcgdGluLiBWdWkgbMOybmcgxJFp4buBbiB0csaw4bubYyBraGkgc+G7rSBk4bulbmcg4bupbmcgZOG7pW5nLjwvcD4KICAgICAgICAgIDxkaXYgY2xhc3M9ImZpZWxkIj48bGFiZWwgZm9yPSJnZm5hbWUiPkjhu40gdsOgIHTDqm48L2xhYmVsPjxpbnB1dCBpZD0iZ2ZuYW1lIiBuYW1lPSJuYW1lIiByZXF1aXJlZCBtYXhsZW5ndGg9IjgwIiBwbGFjZWhvbGRlcj0iTmd1eeG7hW4gVsSDbiBBIj48L2Rpdj4KICAgICAgICAgIDxkaXYgY2xhc3M9ImZpZWxkIj48bGFiZWwgZm9yPSJnZmNsYXNzIj5M4bubcDwvbGFiZWw+PHNlbGVjdCBpZD0iZ2ZjbGFzcyIgbmFtZT0iY2xhc3NJZCIgcmVxdWlyZWQ+PG9wdGlvbiB2YWx1ZT0iIj7igJQgQ2jhu41uIGzhu5twIOKAlDwvb3B0aW9uPg==")}${items.map(c => `${_lhD("PG9wdGlvbiB2YWx1ZT0i")}${esc(c.id)}${_lhD("Ij4=")}${esc(c.name)}${_lhD("PC9vcHRpb24+")}`).join('')}${_lhD("PC9zZWxlY3Q+PC9kaXY+CiAgICAgICAgICA8ZGl2IGNsYXNzPSJmaWVsZCI+PGxhYmVsIGZvcj0iZ2ZnZW5kZXIiPkdp4bubaSB0w61uaDwvbGFiZWw+PHNlbGVjdCBpZD0iZ2ZnZW5kZXIiIG5hbWU9ImdlbmRlciI+PG9wdGlvbiB2YWx1ZT0iIj7igJQ8L29wdGlvbj48b3B0aW9uPk5hbTwvb3B0aW9uPjxvcHRpb24+TuG7rzwvb3B0aW9uPjwvc2VsZWN0PjwvZGl2PgogICAgICAgICAgPGRpdiBjbGFzcz0iZmllbGQiPjxsYWJlbCBmb3I9ImdmZG9iIj5OZ8OgeSBzaW5oPC9sYWJlbD48aW5wdXQgaWQ9ImdmZG9iIiBuYW1lPSJkb2IiIHR5cGU9ImRhdGUiPjwvZGl2PgogICAgICAgICAgPGRpdiBjbGFzcz0iZmllbGQiPjxsYWJlbCBmb3I9ImdmZW1haWwiPkVtYWlsIChraMO0bmcgYuG6r3QgYnXhu5ljKTwvbGFiZWw+PGlucHV0IGlkPSJnZmVtYWlsIiBuYW1lPSJlbWFpbCIgdHlwZT0iZW1haWwiIHBsYWNlaG9sZGVyPSJ0ZW5iYW5AZ21haWwuY29tIj48L2Rpdj4KICAgICAgICAgIDxkaXYgY2xhc3M9ImZpZWxkIj48bGFiZWwgZm9yPSJnZnBob25lIj5T4buRIMSRaeG7h24gdGhv4bqhaSAoa2jDtG5nIGLhuq90IGJ14buZYyk8L2xhYmVsPjxpbnB1dCBpZD0iZ2ZwaG9uZSIgbmFtZT0icGhvbmUiIGlucHV0bW9kZT0idGVsIiBwbGFjZWhvbGRlcj0iMDl4eCB4eHggeHh4Ij48L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJjYXJkLWZvb3QiPjxidXR0b24gY2xhc3M9ImJ0biBibG9jayIgaWQ9ImdwZmIiPg==")}${icon(_lhD("Y2hlY2s="))}${_lhD("IEzGsHUgJiB2w6BvIOG7qW5nIGThu6VuZzwvYnV0dG9uPjwvZGl2PgogICAgICA8L2Zvcm0+CiAgICA8L2Rpdj4=")}`;
 $(_lhD("I2dwZg==")).onsubmit = (e) => {

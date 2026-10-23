@@ -1,8 +1,8 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, detect, getMode } from './core/api.js?v=mvkq4erg';
-import { icon } from './core/icons.js?v=mvkq4erg';
-import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './core/ui.js?v=mvkq4erg';
-import { qrSvg } from './core/qr.js?v=mvkq4erg';
+import { api, detect, getMode } from './core/api.js?v=mvkqq6wf';
+import { icon } from './core/icons.js?v=mvkqq6wf';
+import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './core/ui.js?v=mvkqq6wf';
+import { qrSvg } from './core/qr.js?v=mvkqq6wf';
 initTheme(); initDevToolsGuard();
 if (matchMedia(_lhD("KG1heC13aWR0aDogNjQwcHgp")).matches && !/[?&]frame/.test(location.search)) location.replace(_lhD("Li8="));
 const DEVICES = {

@@ -22,12 +22,15 @@ execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obfuscate.mjs')], { 
 const ver = 'v=' + Date.now().toString(36);
 const pubDir = path.join(ROOT, 'public');
 const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.update()));</script><style>.demo-ribbon{display:none!important}</style>';
+const rootSplash = '<div id="root"><div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center"><img src="assets/school_logo.png" alt="Trường THPT Lê Hoàn" style="width:96px;height:96px;object-fit:contain;border-radius:50%;background:#fff;padding:6px;box-shadow:0 12px 32px rgba(23,71,201,.28)"><div style="font-weight:700;font-size:16px">Trường THPT Lê Hoàn</div><div class="skel" style="width:180px;height:8px;border-radius:99px"></div></div></div>';
 for (const f of fs.readdirSync(pubDir)) {
   if (!f.endsWith('.html')) continue;
   const p = path.join(pubDir, f);
   let html = fs.readFileSync(p, 'utf8');
   html = html.replace(/<script>window\.process=window\.process[\s\S]*?<\/script>(?:<style>\.demo-ribbon\{display:none!important\}<\/style>)?\s*/g, '');
   html = html.replace('<head>', '<head>\n  ' + inlineFix);
+  html = html.replace(/<link rel="icon"[^>]*>/g, '<link rel="icon" href="assets/school_logo.png" type="image/png">');
+  html = html.replace(/<div id="root">[\s\S]*?<\/div>\s*(?=<\/body>)/, rootSplash + '\n');
   html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
   html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
   fs.writeFileSync(p, html, 'utf8');
