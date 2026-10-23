@@ -1,9 +1,9 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js';
-import { icon, drumArt, moodFace } from './core/icons.js';
-import { openCamera } from './core/camera.js';
+import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkpzoy3';
+import { icon, drumArt, moodFace } from './core/icons.js?v=mvkpzoy3';
+import { openCamera } from './core/camera.js?v=mvkpzoy3';
 import { $, $$, esc, toast, modal, confirmDialog, drawer, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, gauge, cover, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
+fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkpzoy3';
 setPortal(_lhD("c3R1ZGVudA=="));
 initTheme(); initDevToolsGuard();
 const S = { user: null, settings: null, unread: 0, badges: null, cleanups: [] };

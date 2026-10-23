@@ -1,5 +1,5 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js';
+import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js?v=mvkpzoy3';
 if (typeof window !== _lhD("dW5kZWZpbmVk")) {
 if (!window.process) window.process = { env: {} };
 if (location.protocol === _lhD("aHR0cDo=") && ![_lhD("bG9jYWxob3N0"), _lhD("MTI3LjAuMC4x")].includes(location.hostname)) {
@@ -86,14 +86,14 @@ window.dispatchEvent(new CustomEvent(_lhD("YXV0aDpleHBpcmVk"), { detail: { idle:
 }, 5000);
 }
 export function setPortal(p) { portal = p; }
-export const getMode = () => (mode === _lhD("ZGVtbw==") && demo?.isRemote?.()) ? _lhD("c2VydmVy") : mode;
+export const getMode = () => (mode === _lhD("ZGVtbw==") && (demo?.isRemote?.() || (typeof location !== _lhD("dW5kZWZpbmVk") && location.protocol.startsWith(_lhD("aHR0cA=="))))) ? _lhD("c2VydmVy") : mode;
 export async function detect() {
 if (mode) return mode;
 try {
 const r = await fetch(apiUrl(_lhD("YXBpL2hlYWx0aA==")), { cache: _lhD("bm8tc3RvcmU="), headers: { accept: _lhD("YXBwbGljYXRpb24vanNvbg==") }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 8000 : 15000) : undefined });
 if (r.ok && (r.headers.get(_lhD("Y29udGVudC10eXBl")) || '').includes(_lhD("anNvbg=="))) { const j = await r.json(); if (j.app === _lhD("bGVob2FuLXBvcnRhbA==")) { registerSw(); return (mode = _lhD("c2VydmVy")); } }
 } catch {  }
-demo = await import(_lhD("Li9kZW1vLmpz"));
+demo = await import(_lhD("Li9kZW1vLmpzP3Y9bGl2ZTI="));
 await demo.init();
 mode = _lhD("ZGVtbw==");
 return mode;

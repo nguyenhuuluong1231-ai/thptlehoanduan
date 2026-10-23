@@ -96,7 +96,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function setPortal(p) { portal = p; }
-export const getMode = () => (mode === 'demo' && demo?.isRemote?.()) ? 'server' : mode;
+export const getMode = () => (mode === 'demo' && (demo?.isRemote?.() || (typeof location !== 'undefined' && location.protocol.startsWith('http')))) ? 'server' : mode;
 
 export async function detect() {
   if (mode) return mode;
@@ -104,7 +104,7 @@ export async function detect() {
     const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 8000 : 15000) : undefined });
     if (r.ok && (r.headers.get('content-type') || '').includes('json')) { const j = await r.json(); if (j.app === 'lehoan-portal') { registerSw(); return (mode = 'server'); } }
   } catch { /* không có máy chủ */ }
-  demo = await import('./demo.js');
+  demo = await import('./demo.js?v=live2');
   await demo.init();
   mode = 'demo';
   return mode;

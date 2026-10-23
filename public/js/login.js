@@ -1,7 +1,7 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js';
-import { icon, drumArt } from './core/icons.js';
-import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js';
+import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvkpzoy3';
+import { icon, drumArt } from './core/icons.js?v=mvkpzoy3';
+import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvkpzoy3';
 initTheme(); initDevToolsGuard();
 const root = $(_lhD("I3Jvb3Q="));
 const urlPortal = new URLSearchParams(location.search).get(_lhD("cG9ydGFs"));

@@ -19,6 +19,7 @@ const ZIP_OUT = path.join(ROOT, 'lehoan-portal-cpanel.zip');
 // 1. Làm rối lại client-src/js -> public/js & gắn mã chống cache trình duyệt
 execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obfuscate.mjs')], { cwd: ROOT, stdio: 'inherit' });
 
+const ver = 'v=' + Date.now().toString(36);
 const pubDir = path.join(ROOT, 'public');
 const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);</script>';
 for (const f of fs.readdirSync(pubDir)) {
@@ -28,10 +29,24 @@ for (const f of fs.readdirSync(pubDir)) {
   if (!html.includes('window.process=window.process')) {
     html = html.replace('<head>', '<head>\n  ' + inlineFix);
   }
-  html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, '$1?v=20261023d$2');
-  html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, '$1?v=20261023d$2');
+  html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
+  html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
   fs.writeFileSync(p, html, 'utf8');
 }
+
+function bustJsImports(dir) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, ent.name);
+    if (ent.isDirectory()) bustJsImports(full);
+    else if (ent.name.endsWith('.js')) {
+      let code = fs.readFileSync(full, 'utf8');
+      code = code.replace(/(from\s+['"]\.[a-zA-Z0-9_.\-/]+\.js)(?:\?[^'"]*)?(['"])/g, `$1?${ver}$2`);
+      code = code.replace(/(import\(\s*['"]\.[a-zA-Z0-9_.\-/]+\.js)(?:\?[^'"]*)?(['"]\s*\))/g, `$1?${ver}$2`);
+      fs.writeFileSync(full, code, 'utf8');
+    }
+  }
+}
+bustJsImports(path.join(pubDir, 'js'));
 
 // 2. Giải mã data/db.json ra data/db-live.json để sync.php phục vụ đầy đủ 1.517 tài khoản thật
 if (fs.existsSync(DB_FILE) && fs.existsSync(DB_KEY_FILE)) {

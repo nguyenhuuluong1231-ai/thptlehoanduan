@@ -1,6 +1,6 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { icon } from './icons.js';
-import { esc, toast, compressImage } from './ui.js';
+import { icon } from './icons.js?v=mvkpzoy3';
+import { esc, toast, compressImage } from './ui.js?v=mvkpzoy3';
 const MAX_SIDE = 1600, QUALITY = 0.82;
 let nativeInput = null;
 function pickNative({ capture = true, max = 4 } = {}) {
