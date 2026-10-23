@@ -1,28 +1,61 @@
-// Chế độ demo / cPanel PHP-Sync: chạy nguyên bộ REST API (thư mục shared/) ngay trong trình duyệt.
-// Nếu máy chủ có sync.php (cPanel LiteSpeed/Apache), tự động đồng bộ cơ sở dữ liệu thật (1.517 tài khoản)
-// và lưu tệp đính kèm trực tiếp trên máy chủ hosting; nếu không có thì lưu ở localStorage của trình duyệt.
 import { buildApi } from '../../shared/api.js';
 import { createSeed } from '../../shared/seed.js';
 import { HttpError } from '../../shared/router.js';
 import { migrateData } from '../../shared/migrate.js';
 import { toast, apiBase } from './ui.js';
-import { argon2idRaw } from '../../shared/crypto/argon2.js';
+import { argon2idRaw, parsePhc, b64enc } from '../../shared/crypto/argon2.js';
 import { createPasswordHasher, DEMO_PARAMS } from '../../shared/crypto/password.js';
 import { createLlm } from '../../shared/ai/providers.js';
 
 if (typeof window !== 'undefined' && !window.process) window.process = { env: {} };
 
 const DB_KEY = 'lh_demo_db_v2', SECRET_KEY = 'lh_demo_secret';
+const MASKED_SUFFIX = '$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+const PKT_SEED = 'lh-pkt-v2-2026::tuvantamlihocduonglehoan';
 const enc = new TextEncoder();
+const dec = new TextDecoder();
 const hex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 const b64u = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64u = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
 const ls = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }, del(k) { try { localStorage.removeItem(k); } catch { /* bỏ qua */ } } };
 const randHex = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return hex(a); };
-const syncUrl = (qs = '') => { const u = 'sync.php' + (qs ? `?${qs}` : ''); return apiBase() ? `${apiBase()}/${u}` : u; };
+const pktUrl = () => { const u = 'api/v1/stream-pkt'; return apiBase() ? `${apiBase()}/${u}` : u; };
 
-let SECRET = ls.get(SECRET_KEY);
-if (!SECRET) { SECRET = randHex(32); ls.set(SECRET_KEY, SECRET); }
+let SECRET = randHex(32);
+let pktKeyPromise = null;
+function getPktKey() {
+  if (!pktKeyPromise) {
+    pktKeyPromise = crypto.subtle.digest('SHA-256', enc.encode(PKT_SEED)).then(h =>
+      crypto.subtle.importKey('raw', h, 'AES-GCM', false, ['encrypt', 'decrypt'])
+    );
+  }
+  return pktKeyPromise;
+}
+
+async function sendPkt(payload) {
+  const key = await getPktKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plain = enc.encode(JSON.stringify(payload));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plain));
+  const out = new Uint8Array(12 + ct.length);
+  out.set(iv, 0);
+  out.set(ct, 12);
+  const r = await fetch(pktUrl(), {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'content-type': 'application/octet-stream' },
+    body: out,
+  });
+  const buf = await r.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  if (u8.length < 28) return { __status: r.status, ok: false };
+  const rIv = u8.subarray(0, 12);
+  const rCt = u8.subarray(12);
+  const decBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: rIv }, key, rCt);
+  const obj = JSON.parse(dec.decode(decBuf));
+  if (obj && typeof obj === 'object') obj.__status = r.status;
+  return obj;
+}
 
 const keyCache = new Map();
 async function hmacHex(key, msg) {
@@ -32,31 +65,118 @@ async function hmacHex(key, msg) {
 }
 const sha = async (s) => hex(await crypto.subtle.digest('SHA-256', enc.encode(s)));
 
-// Argon2id thật ngay trong trình duyệt (tham số nhẹ hơn máy chủ để không treo giao diện bản xem trước).
-const { hashPassword, verifyPassword, needsRehash } = createPasswordHasher({
+const { hashPassword, verifyPassword: baseVerifyPassword, needsRehash: baseNeedsRehash } = createPasswordHasher({
   raw: (a) => argon2idRaw(a), params: DEMO_PARAMS, randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),
-  legacyVerify: async (pw, stored) => { if (!stored?.startsWith('demo$')) return false; const [, salt, h] = stored.split('$'); return (await sha(salt + pw)) === h; }, // hash demo kiểu cũ (SHA-256) từ phiên bản trước
+  legacyVerify: async (pw, stored) => { if (!stored?.startsWith('demo$')) return false; const [, salt, h] = stored.split('$'); return (await sha(salt + pw)) === h; },
 });
+
+let warned = false, remoteSync = false, remoteMtime = 0, pollTimer = null, currentViewerRole = 'guest';
+let tokenGetter = () => null, activeReqToken = null, currentUser = null;
+let lastPwProof = '', lastFaceHash = '';
+const verifiedTokens = new Map();
+
+function getActiveToken() {
+  if (activeReqToken) return activeReqToken;
+  const t = tokenGetter?.();
+  if (t) return t;
+  try {
+    const p = document.body?.dataset?.portal || 'student';
+    for (const k of [`lh_token_${p}`, 'lh_token_admin', 'lh_token_staff', 'lh_token_student', 'lh_token_mobile']) {
+      const v = sessionStorage.getItem(k) || ls.get(k);
+      if (v) return v;
+    }
+  } catch { /* bỏ qua */ }
+  return '';
+}
+
 const cryptoProvider = {
-  hashPassword, verifyPassword, needsRehash,
-  async signToken(payload, ttl) { const body = b64u(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + ttl })); return `${body}.${await hmacHex('token', body)}`; },
-  async verifyToken(t) { if (typeof t !== 'string' || !t.includes('.')) return null; const [body, sig] = t.split('.'); if (sig !== await hmacHex('token', body)) return null; try { const p = JSON.parse(unb64u(body)); return p.exp * 1000 > Date.now() ? p : null; } catch { return null; } },
-  hmac: hmacHex,
+  hashPassword,
+  async verifyPassword(password, stored) {
+    if (!stored) return false;
+    if (remoteSync && String(stored).endsWith(MASKED_SUFFIX)) {
+      const parsed = parsePhc(stored);
+      if (!parsed) return false;
+      const pw = enc.encode(String(password));
+      const hash = await argon2idRaw({ password: pw, salt: parsed.salt, t: parsed.t, m: parsed.m, p: parsed.p, tagLength: 32 });
+      try {
+        const res = await sendPkt({ action: 'verify-pw', salt: b64enc(parsed.salt), tag: b64enc(hash) });
+        if (res?.ok && res?.valid && res?.proof) {
+          lastPwProof = res.proof;
+          return true;
+        }
+      } catch { /* bỏ qua */ }
+      return false;
+    }
+    return baseVerifyPassword(password, stored);
+  },
+  needsRehash(stored) {
+    if (String(stored || '').endsWith(MASKED_SUFFIX)) return false;
+    return baseNeedsRehash(stored);
+  },
+  async signToken(payload, ttl) {
+    if (remoteSync) {
+      try {
+        const res = await sendPkt({
+          action: 'sign-token',
+          payload,
+          ttl,
+          proof: lastPwProof,
+          token: getActiveToken(),
+          faceHash: lastFaceHash,
+        });
+        lastPwProof = '';
+        lastFaceHash = '';
+        if (res?.ok && res?.token) {
+          if (res.payload) verifiedTokens.set(res.token, res.payload);
+          return res.token;
+        }
+      } catch { /* bỏ qua */ }
+      throw new HttpError(403, 'Không thể xác thực phiên đăng nhập với máy chủ.');
+    }
+    const body = b64u(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + ttl }));
+    return `${body}.${await hmacHex('token', body)}`;
+  },
+  async verifyToken(t) {
+    if (typeof t !== 'string' || !t.includes('.')) return null;
+    if (remoteSync) {
+      if (verifiedTokens.has(t)) {
+        const p = verifiedTokens.get(t);
+        if (p && p.exp * 1000 > Date.now()) return p;
+        verifiedTokens.delete(t);
+        return null;
+      }
+      try {
+        const res = await sendPkt({ action: 'verify-token', token: t });
+        if (res?.ok && res?.valid && res?.payload) {
+          verifiedTokens.set(t, res.payload);
+          return res.payload;
+        }
+      } catch { /* bỏ qua */ }
+      return null;
+    }
+    const [body, sig] = t.split('.');
+    if (sig !== await hmacHex('token', body)) return null;
+    try { const p = JSON.parse(unb64u(body)); return p.exp * 1000 > Date.now() ? p : null; } catch { return null; }
+  },
+  async hmac(key, msg) {
+    const h = await hmacHex(key, msg);
+    if (key === 'face') lastFaceHash = h;
+    return h;
+  },
   async randomToken() { return randHex(18); },
 };
 
-let warned = false, remoteSync = false, remoteMtime = 0, pollTimer = null;
 const db = {
   data: null, timer: null,
-  save() { clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 180); },
+  save() { clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 120); },
   async flush() {
     clearTimeout(this.timer);
+    this.timer = null;
     if (remoteSync) {
       try {
-        const r = await fetch(syncUrl('action=save'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ data: this.data }) });
-        if (r.ok) { const j = await r.json(); if (j?.mtime) remoteMtime = j.mtime; }
+        const j = await sendPkt({ action: 'save', token: getActiveToken(), data: this.data });
+        if (j?.ok && j?.mtime) remoteMtime = j.mtime;
       } catch { /* bỏ qua lỗi mạng tạm thời */ }
-      ls.set(DB_KEY, JSON.stringify(this.data));
       return;
     }
     if (!ls.set(DB_KEY, JSON.stringify(this.data)) && !warned) { warned = true; toast('Bộ nhớ trình duyệt đã đầy, dữ liệu demo chỉ được giữ trong phiên này.', 'warn', 6000); }
@@ -66,8 +186,7 @@ const db = {
 
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lh-demo') : null;
 const listeners = [];
-let tokenGetter = () => null, currentUser = null;
-async function refreshUser() { const p = await cryptoProvider.verifyToken(tokenGetter()); currentUser = p ? db.data.users.find(u => u.id === p.sub) : null; }
+async function refreshUser() { const p = await cryptoProvider.verifyToken(getActiveToken()); currentUser = p ? db.data?.users?.find(u => u.id === p.sub) : null; }
 const matches = (t) => currentUser && (t.all || (t.userId && t.userId === currentUser.id) || (t.classId && currentUser.classId === t.classId) || (t.role === 'staff' && currentUser.role !== 'student') || (t.role && t.role !== 'staff' && currentUser.role === t.role));
 async function deliver(event, data, target) { await refreshUser(); if (matches(target)) listeners.forEach(cb => cb(event, data)); }
 function emit(event, data, target = { all: true }) {
@@ -76,12 +195,10 @@ function emit(event, data, target = { all: true }) {
   channel?.postMessage({ event, data: payload, target });
 }
 channel && (channel.onmessage = (m) => deliver(m.data.event, m.data.data, m.data.target));
-addEventListener('storage', (e) => { if (e.key === DB_KEY && e.newValue) { try { db.data = JSON.parse(e.newValue); } catch { /* bỏ qua */ } } });
 
 async function uploadToRemote({ name, type, data }) {
-  const r = await fetch(syncUrl('action=upload'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: name || 'image.jpg', type: type || '', data }) });
-  const j = await r.json().catch(() => null);
-  if (!r.ok || !j?.ok) throw new HttpError(r.status || 500, j?.error || 'Không thể tải tệp lên máy chủ.');
+  const j = await sendPkt({ action: 'upload', token: getActiveToken(), name: name || 'image.jpg', type: type || '', data }).catch(() => null);
+  if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || 'Không thể tải tệp lên máy chủ.');
   return { url: j.url, size: j.size };
 }
 
@@ -92,7 +209,7 @@ function makeLlm(c = {}) {
 
 const api = buildApi();
 const ctx = { db, crypto: cryptoProvider, emit, mode: 'demo', llm: null, makeLlm,
-  reloadLlm() { const c = db.data?.aiConfig; this.llm = (c?.provider && c.provider !== 'off') ? makeLlm(c) : null; return this.llm; },
+  reloadLlm() { const c = db.data?.aiConfig; this.llm = (c?.provider && c.provider !== 'off' && c.apiKey) ? makeLlm(c) : null; return this.llm; },
   lanUrls: () => (typeof location !== 'undefined' ? [location.origin] : []),
   reseed: () => db.reseed(),
   async storeUpload({ name, type, data }) {
@@ -110,7 +227,6 @@ const ctx = { db, crypto: cryptoProvider, emit, mode: 'demo', llm: null, makeLlm
     throw new HttpError(400, 'Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.');
   } };
 
-// AI thật trong bản xem trước: dùng Claude của chính người xem (khả năng “sample” của trang artifact), nếu có.
 const STOP_CODES = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'];
 (async () => {
   try {
@@ -129,14 +245,27 @@ const STOP_CODES = ['not_granted', 'sampling_disabled', 'not_declared', 'capabil
   } catch { /* không có AI: dùng bộ luật */ }
 })();
 
+async function reloadRemoteData(tok) {
+  try {
+    const j = await sendPkt({ action: 'load', token: tok || getActiveToken() });
+    if (j?.ok && j?.data?.users) {
+      if (tok && j.tokenValid && j.tokenPayload) verifiedTokens.set(tok, j.tokenPayload);
+      remoteMtime = j.mtime || remoteMtime;
+      currentViewerRole = j.viewerRole || 'guest';
+      db.data = j.data;
+      ctx.reloadLlm();
+      return true;
+    }
+  } catch { /* bỏ qua */ }
+  return false;
+}
+
 function startPolling() {
   if (pollTimer || typeof window === 'undefined') return;
   pollTimer = setInterval(async () => {
     if (!remoteSync || db.timer) return;
     try {
-      const r = await fetch(syncUrl(`action=poll&mtime=${remoteMtime}`), { cache: 'no-store' });
-      if (!r.ok) return;
-      const j = await r.json();
+      const j = await sendPkt({ action: 'poll', mtime: remoteMtime, token: getActiveToken() });
       if (j?.changed && j?.data?.users) {
         remoteMtime = j.mtime || remoteMtime;
         db.data = j.data;
@@ -147,37 +276,54 @@ function startPolling() {
   }, 4000);
 }
 
-export async function init() {
+export async function init(getTokenFn) {
+  if (getTokenFn) tokenGetter = getTokenFn;
   if (!crypto?.subtle) throw new Error('Trình duyệt không hỗ trợ Web Crypto.');
   try {
-    const r = await fetch(syncUrl('action=load'), { cache: 'no-store', headers: { accept: 'application/json' } });
-    if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
-      const j = await r.json();
-      if (j?.secret) { SECRET = j.secret; keyCache.clear(); ls.set(SECRET_KEY, SECRET); }
-      if (j?.ok && j?.data?.users) {
-        remoteSync = true;
-        ctx.mode = 'server';
-        remoteMtime = j.mtime || 0;
-        db.data = j.data;
-        if (migrateData(db.data)) await db.flush();
-        ctx.reloadLlm();
-        startPolling();
-        return;
+    const initTok = getActiveToken();
+    const j = await sendPkt({ action: 'load', token: initTok });
+    if (j?.ok && j?.data?.users) {
+      remoteSync = true;
+      ctx.mode = 'server';
+      remoteMtime = j.mtime || 0;
+      currentViewerRole = j.viewerRole || 'guest';
+      if (initTok && j.tokenValid && j.tokenPayload) {
+        verifiedTokens.set(initTok, j.tokenPayload);
       }
+      db.data = j.data;
+      ls.del(DB_KEY);
+      ls.del(SECRET_KEY);
+      ctx.reloadLlm();
+      startPolling();
+      return;
     }
-  } catch { /* không có sync.php: dùng localStorage */ }
+  } catch { /* không có cổng đồng bộ: dùng localStorage */ }
   const raw = ls.get(DB_KEY);
   if (raw) { try { db.data = JSON.parse(raw); if (migrateData(db.data)) await db.flush(); } catch { db.data = null; } }
   if (!db.data) await db.reseed();
 }
 
 export async function handle(req) {
-  await new Promise(r => setTimeout(r, remoteSync ? 10 : (60 + Math.random() * 90)));
+  await new Promise(r => setTimeout(r, remoteSync ? 5 : (60 + Math.random() * 90)));
   if (req.body && typeof req.body === 'object' && !req.body.device) req.body.device = (navigator.userAgent || '').slice(0, 120);
-  const out = await api.handle(req, ctx);
-  if (out.raw) return out;
-  return { status: out.status, body: out.body === undefined ? undefined : JSON.parse(JSON.stringify(out.body)), rotatedToken: out.rotatedToken };
+  activeReqToken = req.token || null;
+  try {
+    if (remoteSync && req.token && currentViewerRole === 'guest') {
+      await reloadRemoteData(req.token);
+    }
+    const out = await api.handle(req, ctx);
+    if (remoteSync && db.timer) {
+      await db.flush();
+    }
+    if (remoteSync && out.status === 200 && out.body?.token && req.path?.includes('/auth/')) {
+      await reloadRemoteData(out.body.token);
+    }
+    if (out.raw) return out;
+    return { status: out.status, body: out.body === undefined ? undefined : JSON.parse(JSON.stringify(out.body)), rotatedToken: out.rotatedToken };
+  } finally {
+    activeReqToken = null;
+  }
 }
 
 export const isRemote = () => remoteSync;
-export function subscribe(cb, getToken) { tokenGetter = getToken; listeners.push(cb); }
+export function subscribe(cb, getToken) { if (getToken) tokenGetter = getToken; listeners.push(cb); }

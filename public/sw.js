@@ -1,8 +1,8 @@
 // Service worker: cho phép cài Cổng Học Đường Số như một ứng dụng (PWA) và mở nhanh khi mạng yếu.
 // - Tệp giao diện (HTML/CSS/JS/ảnh): lấy từ mạng trước, lưu bản sao để dùng khi mất mạng.
 // - API, realtime, ảnh/video tải lên: luôn lấy trực tiếp từ máy chủ (không lưu đệm) để dữ liệu luôn đồng bộ.
-const CACHE = 'lehoan-v72';
-const SHELL = ['./', 'index.html', 'staff.html', 'app.html', 'admin.html', 'css/app.css', 'js/login.js', 'js/student.js', 'js/admin.js', 'js/core/api.js', 'js/core/ui.js', 'js/core/icons.js', 'assets/logo-mark.svg', 'assets/icons/icon-192.png', 'manifest.webmanifest'];
+const CACHE = 'lehoan-v80';
+const SHELL = ['./', 'index.html', 'staff.html', 'app.html', 'admin.html', 'phone.html', 'css/app.css', 'assets/school_logo.png', 'assets/logo-mark.svg', 'assets/icons/icon-192.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => { /* bỏ qua tệp lỗi */ }));

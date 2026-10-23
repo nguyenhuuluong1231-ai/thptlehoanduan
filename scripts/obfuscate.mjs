@@ -285,7 +285,7 @@ function encodeTokens(tokens, state) {
   return result;
 }
 
-function transform(src) {
+export function transform(src) {
   const state = { usedDecoder: false };
   let result = encodeTokens(tokenize(src), state);
   result = result.replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').replace(/^\s+/gm, '');

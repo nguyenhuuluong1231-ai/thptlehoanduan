@@ -1,6 +1,7 @@
 // Lớp gọi API: tự phát hiện máy chủ Node.js; nếu không có (vd. bản xem trước tĩnh) sẽ chạy
 // cùng bộ API ngay trong trình duyệt (chế độ demo, dữ liệu lưu trên máy người xem).
 import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js';
+import * as demoMod from './demo.js';
 
 if (typeof window !== 'undefined') {
   if (!window.process) window.process = { env: {} };
@@ -100,14 +101,17 @@ export const getMode = () => (mode === 'demo' && (demo?.isRemote?.() || (typeof 
 
 export async function detect() {
   if (mode) return mode;
+  demo = demoMod;
+  await demo.init(() => session.token);
+  if (demo.isRemote()) {
+    registerSw();
+    return (mode = 'demo');
+  }
   try {
-    const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 8000 : 15000) : undefined });
+    const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 5000 : 5000) : undefined });
     if (r.ok && (r.headers.get('content-type') || '').includes('json')) { const j = await r.json(); if (j.app === 'lehoan-portal') { registerSw(); return (mode = 'server'); } }
   } catch { /* không có máy chủ */ }
-  demo = await import('./demo.js?v=live2');
-  await demo.init();
-  mode = 'demo';
-  return mode;
+  return (mode = 'demo');
 }
 
 // Cài như ứng dụng (PWA) khi chạy trên máy chủ thật qua trình duyệt (không áp dụng trong app APK)

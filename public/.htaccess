@@ -11,9 +11,20 @@
   RewriteCond %{QUERY_STRING} !mobile=1 [NC]
   RewriteRule ^(|index\.html|login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ /mobile [L,R=302,NC]
 
-  # Chặn truy cập trực tiếp vào các tệp dữ liệu nhạy cảm và cấu hình máy chủ
+  # Chặn truy cập trực tiếp vào các tệp dữ liệu nhạy cảm, mã nguồn JS/PHP và cấu hình máy chủ
   RewriteRule ^data/.*\.(json|key|tmp.*)$ - [F,L,NC]
   RewriteRule ^(server\.js|app\.cjs|package\.json|package-lock\.json|render\.yaml|Dockerfile)(/|$) - [F,L,NC]
+  RewriteRule ^(js|shared|client-src|scripts)(/|$) - [F,L,NC]
+
+  # Chặn gọi trực tiếp sync.php từ trình duyệt (chỉ cho phép cổng mã hóa nội bộ hoặc deploy-zip có khóa)
+  RewriteCond %{THE_REQUEST} \s/+(public/)?sync\.php [NC]
+  RewriteCond %{QUERY_STRING} !action=deploy-zip [NC]
+  RewriteRule ^(public/)?sync\.php$ - [F,L,NC]
+
+  # Cổng đồng bộ nhị phân đã mã hóa AES-256-GCM (ẩn hoàn toàn tên tệp .php)
+  RewriteCond %{DOCUMENT_ROOT}/sync.php -f
+  RewriteRule ^api/v1/stream-pkt/?$ sync.php [L,QSA,NC]
+  RewriteRule ^api/v1/stream-pkt/?$ public/sync.php [L,QSA,NC]
 
   # Phục vụ ảnh đại diện, ảnh chứng chỉ và tệp đính kèm trong data/uploads/
   RewriteRule ^uploads/([a-zA-Z0-9_.\-]+)$ data/uploads/$1 [L,NC]
