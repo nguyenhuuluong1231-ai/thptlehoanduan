@@ -34,8 +34,10 @@ if (!is_dir($uploadDir)) {
 }
 
 $dbFile = $dataDir . '/db-live.json';
+$revFile = $dataDir . '/db.rev';
 $secretFile = $dataDir . '/secret.key';
 $secret = is_file($secretFile) ? trim((string)@file_get_contents($secretFile)) : 'lh-cpanel-default-secret-key';
+define('LH_CLIENT_HMAC_SEED', 'lh-hmac-v2-2026::tuvantamlihocduonglehoan');
 
 // 1. Cổng triển khai tự động (chỉ cho phép khi có khóa X-Deploy-Key khớp với secret.key trên máy chủ)
 if (($_GET['action'] ?? '') === 'deploy-zip' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -116,6 +118,14 @@ if (!is_array($req)) {
 $action = (string)($req['action'] ?? 'load');
 $reqToken = isset($req['token']) && is_string($req['token']) ? trim($req['token']) : '';
 
+function _lhGetDbRev(string $dbFile, string $revFile): int {
+  clearstatcache(true, $dbFile);
+  clearstatcache(true, $revFile);
+  $rev = is_file($revFile) ? (int)trim((string)@file_get_contents($revFile)) : 0;
+  $fm = is_file($dbFile) ? ((int)@filemtime($dbFile) * 1000) : 0;
+  return max($rev, $fm);
+}
+
 function _lhLoadRawDb(string $dbFile): ?array {
   if (!is_file($dbFile)) return null;
   $raw = (string)@file_get_contents($dbFile);
@@ -123,7 +133,7 @@ function _lhLoadRawDb(string $dbFile): ?array {
   return (is_array($data) && isset($data['users']) && is_array($data['users'])) ? $data : null;
 }
 
-function _lhSaveRawDb(string $dbFile, array $data): int {
+function _lhSaveRawDb(string $dbFile, array $data, string $revFile = ''): int {
   $json = json_encode($data, JSON_UNESCAPED_UNICODE);
   if ($json === false) return 0;
   $tmpFile = $dbFile . '.tmp.' . getmypid() . '.' . mt_rand(1000, 9999);
@@ -133,7 +143,14 @@ function _lhSaveRawDb(string $dbFile, array $data): int {
     @file_put_contents($dbFile, $json, LOCK_EX);
   }
   clearstatcache(true, $dbFile);
-  return is_file($dbFile) ? (int)@filemtime($dbFile) : time();
+  $nowMs = (int)round(microtime(true) * 1000);
+  if ($revFile !== '') {
+    $prev = _lhGetDbRev($dbFile, $revFile);
+    $rev = max($nowMs, $prev + 1);
+    @file_put_contents($revFile, (string)$rev, LOCK_EX);
+    return $rev;
+  }
+  return $nowMs;
 }
 
 function _lhB64uEnc(string $s): string {
@@ -233,14 +250,16 @@ function _lhFilterDataForViewer(array $data, ?array $viewer): array {
 
   // Học sinh: chỉ nhận dữ liệu của chính mình và thông tin chung toàn trường
   if ($role === 'student') {
+    $reportKey = hash_hmac('sha256', (string)$uid, LH_CLIENT_HMAC_SEED . '|anon-reporter');
+    $counselKey = hash_hmac('sha256', (string)$uid, LH_CLIENT_HMAC_SEED . '|counsel-owner');
     $data['alerts'] = [];
     $data['audit'] = [];
     $data['unlockRequests'] = [];
     $data['aiConfig'] = ['provider' => (string)($data['aiConfig']['provider'] ?? 'off')];
     $data['aiLogs'] = array_values(array_filter($data['aiLogs'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
-    $data['reports'] = array_values(array_filter($data['reports'] ?? [], fn($x) => ($x['reporterId'] ?? '') === $uid));
+    $data['reports'] = array_values(array_filter($data['reports'] ?? [], fn($x) => ($x['reporterId'] ?? '') === $uid || ($x['reporterKey'] ?? '') === $reportKey));
     $data['records'] = array_values(array_filter($data['records'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid));
-    $data['counseling'] = array_values(array_filter($data['counseling'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid));
+    $data['counseling'] = array_values(array_filter($data['counseling'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid || ($x['ownerKey'] ?? '') === $counselKey));
     $data['teacherChat'] = array_values(array_filter($data['teacherChat'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid));
     $data['moods'] = array_values(array_filter($data['moods'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
     $data['surveyResponses'] = array_values(array_filter($data['surveyResponses'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
@@ -281,7 +300,145 @@ function _lhMergeListById(array $orig, array $inc, bool $prependNew = true): arr
   return $out;
 }
 
-function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer): array {
+function _lhMergeSchoolMessages(array $orig, array $inc): array {
+  $map = [];
+  $order = [];
+  foreach ($orig as $idx => $m) {
+    if (!is_array($m)) continue;
+    $id = isset($m['id']) ? (string)$m['id'] : ('__idx_' . $idx);
+    $map[$id] = $m;
+    $order[] = $id;
+  }
+  foreach ($inc as $m) {
+    if (!is_array($m) || !isset($m['id'])) continue;
+    $id = (string)$m['id'];
+    if (!array_key_exists($id, $map)) {
+      $order[] = $id;
+      $map[$id] = $m;
+    } else {
+      $om = $map[$id];
+      $merged = array_merge($om, $m);
+      if (!empty($om['deleted']) || !empty($m['deleted'])) {
+        $merged['deleted'] = true;
+        $merged['deletedBy'] = $m['deletedBy'] ?? $om['deletedBy'] ?? null;
+      }
+      if (!empty($om['recalled']) || !empty($m['recalled'])) {
+        $merged['recalled'] = true;
+        $merged['recalledAt'] = $m['recalledAt'] ?? $om['recalledAt'] ?? null;
+      }
+      $map[$id] = $merged;
+    }
+  }
+  $out = [];
+  foreach ($order as $id) {
+    if (isset($map[$id])) $out[] = $map[$id];
+  }
+  return $out;
+}
+
+function _lhMergeChatThreads(array $orig, array $inc, string $viewerRole, bool $allowDelete = false): array {
+  if ($allowDelete && $viewerRole !== 'student') {
+    return $inc;
+  }
+  $origMap = [];
+  foreach ($orig as $t) {
+    if (is_array($t) && isset($t['id'])) $origMap[(string)$t['id']] = $t;
+  }
+  $incMap = [];
+  foreach ($inc as $t) {
+    if (is_array($t) && isset($t['id'])) $incMap[(string)$t['id']] = $t;
+  }
+  $allIds = array_values(array_unique(array_merge(array_keys($incMap), array_keys($origMap))));
+  $out = [];
+  foreach ($allIds as $id) {
+    if (!isset($origMap[$id])) {
+      $out[] = $incMap[$id];
+      continue;
+    }
+    if (!isset($incMap[$id])) {
+      $out[] = $origMap[$id];
+      continue;
+    }
+    $ot = $origMap[$id];
+    $it = $incMap[$id];
+    $oMsgs = is_array($ot['messages'] ?? null) ? $ot['messages'] : [];
+    $iMsgs = is_array($it['messages'] ?? null) ? $it['messages'] : [];
+    // Khi học sinh xóa cuộc trò chuyện tư vấn (messages = [], hiddenForStudent = true)
+    if ($viewerRole === 'student' && !empty($it['hiddenForStudent']) && count($iMsgs) === 0) {
+      $out[] = $it;
+      continue;
+    }
+    $msgMap = [];
+    $msgOrder = [];
+    foreach ($oMsgs as $idx => $m) {
+      if (!is_array($m)) continue;
+      $mid = isset($m['id']) ? (string)$m['id'] : ('__idx_' . $idx);
+      $msgMap[$mid] = $m;
+      $msgOrder[] = $mid;
+    }
+    $newFromInc = 0;
+    foreach ($iMsgs as $m) {
+      if (!is_array($m) || !isset($m['id'])) continue;
+      $mid = (string)$m['id'];
+      if (!array_key_exists($mid, $msgMap)) {
+        $msgOrder[] = $mid;
+        $msgMap[$mid] = $m;
+        $newFromInc++;
+      } else {
+        $om = $msgMap[$mid];
+        $mm = array_merge($om, $m);
+        if (!empty($om['recalled']) || !empty($m['recalled'])) {
+          $mm['recalled'] = true;
+          $mm['recalledAt'] = $m['recalledAt'] ?? $om['recalledAt'] ?? null;
+        }
+        $msgMap[$mid] = $mm;
+      }
+    }
+    $incMsgIds = [];
+    foreach ($iMsgs as $m) {
+      if (is_array($m) && isset($m['id'])) $incMsgIds[(string)$m['id']] = true;
+    }
+    $missedFromStudent = 0;
+    $missedFromStaff = 0;
+    foreach ($oMsgs as $m) {
+      if (!is_array($m) || !isset($m['id'])) continue;
+      $mid = (string)$m['id'];
+      if (!isset($incMsgIds[$mid])) {
+        if (($m['from'] ?? '') === 'student') $missedFromStudent++;
+        else $missedFromStaff++;
+      }
+    }
+    $mergedMsgs = [];
+    foreach ($msgOrder as $mid) {
+      if (isset($msgMap[$mid])) $mergedMsgs[] = $msgMap[$mid];
+    }
+    $merged = array_merge($ot, $it);
+    $merged['messages'] = $mergedMsgs;
+    $lastAt = count($mergedMsgs) > 0 ? (string)($mergedMsgs[count($mergedMsgs) - 1]['at'] ?? '') : '';
+    $merged['updatedAt'] = max((string)($ot['updatedAt'] ?? ''), (string)($it['updatedAt'] ?? ''), $lastAt);
+    if ($viewerRole === 'student') {
+      $merged['unreadStudent'] = (int)($it['unreadStudent'] ?? 0) + $missedFromStaff;
+      if (isset($ot['unreadStaff']) || isset($it['unreadStaff'])) {
+        $merged['unreadStaff'] = $newFromInc > 0 ? (int)($it['unreadStaff'] ?? 0) : max((int)($ot['unreadStaff'] ?? 0), (int)($it['unreadStaff'] ?? 0));
+      }
+      if (isset($ot['unreadTeacher']) || isset($it['unreadTeacher'])) {
+        $merged['unreadTeacher'] = $newFromInc > 0 ? (int)($it['unreadTeacher'] ?? 0) : max((int)($ot['unreadTeacher'] ?? 0), (int)($it['unreadTeacher'] ?? 0));
+      }
+    } else {
+      $merged['unreadStudent'] = $newFromInc > 0 ? (int)($it['unreadStudent'] ?? 0) : max((int)($ot['unreadStudent'] ?? 0), (int)($it['unreadStudent'] ?? 0));
+      if (isset($ot['unreadStaff']) || isset($it['unreadStaff'])) {
+        $merged['unreadStaff'] = (int)($it['unreadStaff'] ?? 0) + $missedFromStudent;
+      }
+      if (isset($ot['unreadTeacher']) || isset($it['unreadTeacher'])) {
+        $merged['unreadTeacher'] = (int)($it['unreadTeacher'] ?? 0) + $missedFromStudent;
+      }
+    }
+    $out[] = $merged;
+  }
+  return $out;
+}
+
+function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer, bool $allowDelete = false): array {
   $role = $viewer['role'] ?? 'guest';
   $uid = $viewer['id'] ?? '';
 
@@ -345,19 +502,32 @@ function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer): array 
         }
       }
     }
-    $mergeFront = ['reports', 'counseling', 'teacherChat', 'aiLogs', 'moods', 'surveyResponses', 'quizAttempts', 'scamChecks', 'feedback', 'notifications', 'alerts', 'audit', 'faceKeys', 'unlockRequests'];
+    foreach (['counseling', 'teacherChat'] as $tk) {
+      if (isset($incoming[$tk]) && is_array($incoming[$tk])) {
+        $currentDb[$tk] = _lhMergeChatThreads($currentDb[$tk] ?? [], $incoming[$tk], 'student', $allowDelete);
+      }
+    }
+    $mergeFront = ['reports', 'aiLogs', 'moods', 'surveyResponses', 'quizAttempts', 'scamChecks', 'feedback', 'notifications', 'alerts', 'audit', 'faceKeys', 'unlockRequests'];
     foreach ($mergeFront as $k) {
       if (isset($incoming[$k]) && is_array($incoming[$k])) {
         $currentDb[$k] = _lhMergeListById($currentDb[$k] ?? [], $incoming[$k], true);
       }
     }
     if (isset($incoming['schoolChat']['messages']) && is_array($incoming['schoolChat']['messages'])) {
-      $currentDb['schoolChat']['messages'] = _lhMergeListById($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages'], false);
+      $currentDb['schoolChat']['messages'] = _lhMergeSchoolMessages($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages']);
+    }
+    if (isset($incoming['schoolChat']['warnings']) && is_array($incoming['schoolChat']['warnings'])) {
+      foreach ($incoming['schoolChat']['warnings'] as $wUid => $wCnt) {
+        $currentDb['schoolChat']['warnings'][$wUid] = max((int)($currentDb['schoolChat']['warnings'][$wUid] ?? 0), (int)$wCnt);
+      }
+    }
+    if (isset($incoming['schoolChat']['muted']) && is_array($incoming['schoolChat']['muted'])) {
+      $currentDb['schoolChat']['muted'] = array_values(array_unique(array_merge($currentDb['schoolChat']['muted'] ?? [], $incoming['schoolChat']['muted'])));
     }
     return $currentDb;
   }
 
-  // 3. Giáo viên / Ban Giám hiệu: có toàn quyền cập nhật nhưng bảo toàn passwordHash thật trên đĩa
+  // 3. Giáo viên / Ban Giám hiệu: có toàn quyền cập nhật nhưng bảo toàn passwordHash thật và gộp tin nhắn đồng thời
   if (isset($incoming['users']) && is_array($incoming['users'])) {
     foreach ($incoming['users'] as &$iu) {
       $id = (string)($iu['id'] ?? '');
@@ -369,6 +539,21 @@ function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer): array 
       }
     }
     unset($iu);
+  }
+  foreach (['counseling', 'teacherChat'] as $tk) {
+    if (isset($incoming[$tk]) && is_array($incoming[$tk])) {
+      $incoming[$tk] = _lhMergeChatThreads($currentDb[$tk] ?? [], $incoming[$tk], $role, $allowDelete);
+    }
+  }
+  if (isset($incoming['schoolChat']['messages']) && is_array($incoming['schoolChat']['messages'])) {
+    $incoming['schoolChat']['messages'] = _lhMergeSchoolMessages($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages']);
+  }
+  if (!$allowDelete) {
+    foreach (['reports', 'notifications', 'alerts', 'moods', 'surveyResponses', 'quizAttempts', 'scamChecks', 'feedback', 'unlockRequests', 'aiLogs'] as $k) {
+      if (isset($incoming[$k]) && is_array($incoming[$k])) {
+        $incoming[$k] = _lhMergeListById($currentDb[$k] ?? [], $incoming[$k], true);
+      }
+    }
   }
   return $incoming;
 }
@@ -460,8 +645,7 @@ if ($action === 'verify-token') {
 
 // D. Kiểm tra thay đổi dữ liệu định kỳ (poll)
 if ($action === 'poll') {
-  clearstatcache(true, $dbFile);
-  $mtime = is_file($dbFile) ? (int)@filemtime($dbFile) : 0;
+  $mtime = _lhGetDbRev($dbFile, $revFile);
   $since = isset($req['mtime']) ? (int)$req['mtime'] : 0;
   if ($mtime > $since && $dbData) {
     $filtered = _lhFilterDataForViewer($dbData, $viewer);
@@ -506,18 +690,19 @@ if ($action === 'save') {
   if (!is_array($incoming) || !isset($incoming['users']) || !is_array($incoming['users'])) {
     _lhSendPkt(['ok' => false, 'error' => 'Cấu trúc dữ liệu không hợp lệ.'], $pktKey, 400);
   }
-  $merged = $dbData ? _lhMergeSave($dbData, $incoming, $viewer) : $incoming;
-  $mtime = _lhSaveRawDb($dbFile, $merged);
+  $allowDelete = !empty($req['allowDelete']);
+  $merged = $dbData ? _lhMergeSave($dbData, $incoming, $viewer, $allowDelete) : $incoming;
+  $mtime = _lhSaveRawDb($dbFile, $merged, $revFile);
   if (!$mtime) {
     _lhSendPkt(['ok' => false, 'error' => 'Không thể lưu dữ liệu.'], $pktKey, 500);
   }
-  _lhSendPkt(['ok' => true, 'mtime' => $mtime], $pktKey);
+  $filtered = _lhFilterDataForViewer($merged, $viewer);
+  _lhSendPkt(['ok' => true, 'mtime' => $mtime, 'data' => $filtered], $pktKey);
 }
 
 // G. Mặc định: action = load (lọc dữ liệu theo quyền của token hiện tại)
 if ($dbData) {
-  clearstatcache(true, $dbFile);
-  $mtime = (int)@filemtime($dbFile);
+  $mtime = _lhGetDbRev($dbFile, $revFile);
   $filtered = _lhFilterDataForViewer($dbData, $viewer);
   _lhSendPkt([
     'ok' => true,

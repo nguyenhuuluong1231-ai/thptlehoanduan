@@ -272,7 +272,7 @@ async function logout() {
 }
 
 function bindLive() {
-  live.on('notification', (n) => { toast(n.title, n.type === 'warning' ? 'warn' : 'info', 4200); refreshBadges(); });
+  live.on('notification', (n) => { toast(n.title + (n.content ? ' · ' + n.content.slice(0, 70) : ''), n.type === 'warning' ? 'warn' : 'info', 4200); refreshBadges(0); });
   live.on('sync', () => { toast('Nhà trường vừa đồng bộ dữ liệu mới.', 'info'); render(); });
   live.on('settings', async () => { S.settings = await api.get('api/settings/public'); if (safeToRefresh()) { shell(); render(); refreshBadges(0); } });
   // Nội dung do nhà trường cập nhật (bản tin, cẩm nang, khảo sát, đấu trường trắc nghiệm): tải lại trang đang xem nếu liên quan
@@ -287,10 +287,15 @@ function bindLive() {
     toast(st.enabled ? `Nhà trường vừa bật AI: ${st.label}` : 'Nhà trường đã tắt AI nâng cao, đang dùng chế độ cơ bản.', 'info', 4000);
     if (['ai', 'scam'].includes(curPage())) render();
   });
-  live.on('teacher-chat:message', () => refreshBadges(600));
-  live.on('counseling:reply', () => refreshBadges(600));
-  live.on('school-chat:message', (m) => { if (m.userId !== S.user.id) refreshBadges(); });
-  live.on('school-chat:delete', () => refreshBadges());
+  live.on('teacher-chat:message', () => refreshBadges(100));
+  live.on('counseling:reply', () => refreshBadges(100));
+  live.on('school-chat:message', (m) => {
+    if (m.userId !== S.user.id) {
+      toast(`💬 ${m.name || 'Chat toàn trường'}: ${(m.text || '📎 Đã gửi tệp đính kèm').slice(0, 80)}`, 'info', 4000);
+      refreshBadges(0);
+    }
+  });
+  live.on('school-chat:delete', () => refreshBadges(0));
   live.on('connection', ({ online }) => { if (online && S.wasOffline) resync(); S.wasOffline = !online; });
   live.on('connection', ({ online }) => { const b = $('#liveBadge'); if (b) { b.className = `badge ${online ? 'ok' : 'warn'}`; b.innerHTML = `<span class="pulse"></span>${online ? 'Đồng bộ realtime' : 'Đang kết nối lại…'}`; } });
   addEventListener('auth:expired', (e) => {
@@ -816,7 +821,17 @@ const PAGES = {
     const targetThread = wantCounselor && allThreads.find(t => t.counselor?.id === wantCounselor || t.counselorId === wantCounselor);
     if (targetThread) open(targetThread.id, wantAnon !== null ? wantAnon === '1' : null);
     else if (threads[0] && innerWidth >= 1024) open(threads[0].id);
-    S.cleanups.push(live.on('counseling:reply', async ({ threadId }) => { if (current?.id === threadId) { current = (await api.get(`api/counseling/threads/${threadId}`)).item; drawChat(); } refreshThreads(); }));
+    S.cleanups.push(live.on('counseling:reply', async ({ threadId }) => {
+      const draft = $('#ct')?.value || '';
+      const hadFocus = document.activeElement?.id === 'ct';
+      if (current?.id === threadId) {
+        current = (await api.get(`api/counseling/threads/${threadId}`)).item;
+        drawChat();
+        if (draft && $('#ct')) $('#ct').value = draft;
+        if (hadFocus && $('#ct')) $('#ct').focus();
+      }
+      refreshThreads();
+    }));
   },
 
   // ---------------------------------------------------------------- Tổ tâm lý
@@ -1004,13 +1019,14 @@ const PAGES = {
       const ok = await sendWithFiles(comp, text, async (b) => { const r = await api.post('api/school-chat', { ...b, anonymous: isAnon }); if (!data.items.some(x => x.id === r.item.id)) data.items.push(r.item); draw(); if (r.warning) toast(r.warning, 'warn', 5000); }, $('#cf button[aria-label="Gửi"]'));
       if (!ok && text) $('#ct').value = text;
     };
-    S.cleanups.push(live.on('school-chat:message', (m) => { if (data.items.some(x => x.id === m.id)) return; data.items.push({ ...m, attachments: m.attachments || [], mine: m.userId === S.user.id, reactions: {} }); draw(); }));
-    S.cleanups.push(live.on('school-chat:delete', ({ id }) => { const m = data.items.find(x => x.id === id); if (m) { m.deleted = true; draw(); } }));
+    const reloadSchoolChat = async () => { data = await api.get('api/school-chat'); draw(); };
+    S.cleanups.push(live.on('school-chat:message', (m) => { if (!data.items.some(x => x.id === m.id)) { data.items.push({ ...m, attachments: m.attachments || [], mine: m.userId === S.user.id, reactions: {} }); draw(); } reloadSchoolChat(); }));
+    S.cleanups.push(live.on('school-chat:delete', ({ id }) => { const m = data.items.find(x => x.id === id); if (m) { m.deleted = true; draw(); } reloadSchoolChat(); }));
     S.cleanups.push(live.on('school-chat:hard-delete', ({ id }) => { data.items = data.items.filter(x => x.id !== id); draw(); }));
     S.cleanups.push(live.on('school-chat:clear', () => { data.items = []; draw(); }));
-    S.cleanups.push(live.on('school-chat:recall', ({ id }) => { const m = data.items.find(x => x.id === id); if (m && !m.recalled) { m.recalled = true; m.text = ''; m.attachments = []; m.reactions = {}; draw(); } }));
+    S.cleanups.push(live.on('school-chat:recall', ({ id }) => { const m = data.items.find(x => x.id === id); if (m && !m.recalled) { m.recalled = true; m.text = ''; m.attachments = []; m.reactions = {}; draw(); } reloadSchoolChat(); }));
     S.cleanups.push(live.on('school-chat:lock', (x) => { data.locked = x.locked; data.lockReason = x.reason; draw(); }));
-    S.cleanups.push(live.on('school-chat:react', async () => { data = await api.get('api/school-chat'); draw(); }));
+    S.cleanups.push(live.on('school-chat:react', reloadSchoolChat));
   },
 
   // ---------------------------------------------------------------- Chat với giáo viên
@@ -1114,7 +1130,17 @@ const PAGES = {
         },
       });
     };
-    S.cleanups.push(live.on('teacher-chat:message', async ({ threadId }) => { if (current?.id === threadId) { current = (await api.get(`api/teacher-chat/threads/${threadId}`)).item; drawChat(); } refreshThreads(); }));
+    S.cleanups.push(live.on('teacher-chat:message', async ({ threadId }) => {
+      const draft = $('#ct')?.value || '';
+      const hadFocus = document.activeElement?.id === 'ct';
+      if (current?.id === threadId) {
+        current = (await api.get(`api/teacher-chat/threads/${threadId}`)).item;
+        drawChat();
+        if (draft && $('#ct')) $('#ct').value = draft;
+        if (hadFocus && $('#ct')) $('#ct').focus();
+      }
+      refreshThreads();
+    }));
   },
 
   // ---------------------------------------------------------------- Danh sách giáo viên

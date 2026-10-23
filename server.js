@@ -234,7 +234,7 @@ const ALIASES = { '/': 'index.html', '/login': 'index.html', '/dang-nhap': 'inde
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'X-Frame-Options': 'SAMEORIGIN',
   'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()',
-  'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
 };
 // Chỉ bắt buộc trình duyệt luôn dùng HTTPS cho các lần sau khi máy chủ THỰC SỰ đang chạy HTTPS
 // (bật qua biến môi trường HTTPS=1 ở dưới) — thêm header này khi đang chạy HTTP thường sẽ tự khóa người

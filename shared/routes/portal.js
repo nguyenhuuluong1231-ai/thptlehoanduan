@@ -127,9 +127,12 @@ export default function portalRoutes(r) {
   r.post('/api/me/seen', { auth: 'user', group: C, desc: 'Đánh dấu đã xem một mục (tắt chấm đỏ). key: schoolChat', body: { key: 'schoolChat' } }, async (req, ctx) => {
     const key = req.body?.key;
     if (!SEEN_KEYS.includes(key)) fail(400, 'Mục không hợp lệ.');
-    req.user.seen = { ...(req.user.seen || {}), [key]: nowISO() };
-    ctx.db.save();
-    return { ok: true, key, at: req.user.seen[key] };
+    const prev = req.user.seen?.[key] || '';
+    const latest = (ctx.db.data.schoolChat?.messages || []).at(-1)?.at || '';
+    const now = nowISO();
+    req.user.seen = { ...(req.user.seen || {}), [key]: now };
+    if (!prev || (latest && latest > prev)) ctx.db.save();
+    return { ok: true, key, at: now };
   });
 
   // ---------- Cá nhân ----------

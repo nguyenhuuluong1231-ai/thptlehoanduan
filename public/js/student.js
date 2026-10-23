@@ -165,7 +165,7 @@ try { await api.post(_lhD("YXBpL2F1dGgvbG9nb3V0")); } catch {  }
 session.clear(); location.href = studentLoginUrl();
 }
 function bindLive() {
-live.on(_lhD("bm90aWZpY2F0aW9u"), (n) => { toast(n.title, n.type === _lhD("d2FybmluZw==") ? _lhD("d2Fybg==") : _lhD("aW5mbw=="), 4200); refreshBadges(); });
+live.on(_lhD("bm90aWZpY2F0aW9u"), (n) => { toast(n.title + (n.content ? _lhD("IMK3IA==") + n.content.slice(0, 70) : ''), n.type === _lhD("d2FybmluZw==") ? _lhD("d2Fybg==") : _lhD("aW5mbw=="), 4200); refreshBadges(0); });
 live.on(_lhD("c3luYw=="), () => { toast(_lhD("TmjDoCB0csaw4budbmcgduG7q2EgxJHhu5NuZyBi4buZIGThu68gbGnhu4d1IG3hu5tpLg=="), _lhD("aW5mbw==")); render(); });
 live.on(_lhD("c2V0dGluZ3M="), async () => { S.settings = await api.get(_lhD("YXBpL3NldHRpbmdzL3B1YmxpYw==")); if (safeToRefresh()) { shell(); render(); refreshBadges(0); } });
 live.on(_lhD("ZGF0YTpjaGFuZ2Vk"), ({ scope }) => { const pages = { news: [_lhD("aG9tZQ=="), _lhD("bmV3cw==")], handbook: [_lhD("aGFuZGJvb2s=")], surveys: [_lhD("aG9tZQ=="), _lhD("c3VydmV5")], quiz: [_lhD("cXVpeg==")], appGuide: [_lhD("YXBwLWd1aWRl")] }[scope] || []; if (pages.includes(curPage()) && safeToRefresh()) render(); });
@@ -178,10 +178,15 @@ live.on(_lhD("YWk6Y29uZmln"), (st) => {
 toast(st.enabled ? `${_lhD("TmjDoCB0csaw4budbmcgduG7q2EgYuG6rXQgQUk6IA==")}${st.label}` : _lhD("TmjDoCB0csaw4budbmcgxJHDoyB04bqvdCBBSSBuw6JuZyBjYW8sIMSRYW5nIGTDuW5nIGNo4bq/IMSR4buZIGPGoSBi4bqjbi4="), _lhD("aW5mbw=="), 4000);
 if ([_lhD("YWk="), _lhD("c2NhbQ==")].includes(curPage())) render();
 });
-live.on(_lhD("dGVhY2hlci1jaGF0Om1lc3NhZ2U="), () => refreshBadges(600));
-live.on(_lhD("Y291bnNlbGluZzpyZXBseQ=="), () => refreshBadges(600));
-live.on(_lhD("c2Nob29sLWNoYXQ6bWVzc2FnZQ=="), (m) => { if (m.userId !== S.user.id) refreshBadges(); });
-live.on(_lhD("c2Nob29sLWNoYXQ6ZGVsZXRl"), () => refreshBadges());
+live.on(_lhD("dGVhY2hlci1jaGF0Om1lc3NhZ2U="), () => refreshBadges(100));
+live.on(_lhD("Y291bnNlbGluZzpyZXBseQ=="), () => refreshBadges(100));
+live.on(_lhD("c2Nob29sLWNoYXQ6bWVzc2FnZQ=="), (m) => {
+if (m.userId !== S.user.id) {
+toast(`${_lhD("8J+SrCA=")}${m.name || _lhD("Q2hhdCB0b8OgbiB0csaw4budbmc=")}${_lhD("OiA=")}${(m.text || _lhD("8J+TjiDEkMOjIGfhu61pIHThu4dwIMSRw61uaCBrw6ht")).slice(0, 80)}`, _lhD("aW5mbw=="), 4000);
+refreshBadges(0);
+}
+});
+live.on(_lhD("c2Nob29sLWNoYXQ6ZGVsZXRl"), () => refreshBadges(0));
 live.on(_lhD("Y29ubmVjdGlvbg=="), ({ online }) => { if (online && S.wasOffline) resync(); S.wasOffline = !online; });
 live.on(_lhD("Y29ubmVjdGlvbg=="), ({ online }) => { const b = $(_lhD("I2xpdmVCYWRnZQ==")); if (b) { b.className = `${_lhD("YmFkZ2Ug")}${online ? _lhD("b2s=") : _lhD("d2Fybg==")}`; b.innerHTML = `${_lhD("PHNwYW4gY2xhc3M9InB1bHNlIj48L3NwYW4+")}${online ? _lhD("xJDhu5NuZyBi4buZIHJlYWx0aW1l") : _lhD("xJBhbmcga+G6v3QgbuG7kWkgbOG6oWnigKY=")}`; } });
 addEventListener(_lhD("YXV0aDpleHBpcmVk"), (e) => {
@@ -542,7 +547,17 @@ sessionStorage.removeItem(_lhD("bGhfb3Blbl9jb3Vuc2Vsb3JfYW5vbg=="));
 const targetThread = wantCounselor && allThreads.find(t => t.counselor?.id === wantCounselor || t.counselorId === wantCounselor);
 if (targetThread) open(targetThread.id, wantAnon !== null ? wantAnon === _lhD("MQ==") : null);
 else if (threads[0] && innerWidth >= 1024) open(threads[0].id);
-S.cleanups.push(live.on(_lhD("Y291bnNlbGluZzpyZXBseQ=="), async ({ threadId }) => { if (current?.id === threadId) { current = (await api.get(`${_lhD("YXBpL2NvdW5zZWxpbmcvdGhyZWFkcy8=")}${threadId}`)).item; drawChat(); } refreshThreads(); }));
+S.cleanups.push(live.on(_lhD("Y291bnNlbGluZzpyZXBseQ=="), async ({ threadId }) => {
+const draft = $(_lhD("I2N0"))?.value || '';
+const hadFocus = document.activeElement?.id === _lhD("Y3Q=");
+if (current?.id === threadId) {
+current = (await api.get(`${_lhD("YXBpL2NvdW5zZWxpbmcvdGhyZWFkcy8=")}${threadId}`)).item;
+drawChat();
+if (draft && $(_lhD("I2N0"))) $(_lhD("I2N0")).value = draft;
+if (hadFocus && $(_lhD("I2N0"))) $(_lhD("I2N0")).focus();
+}
+refreshThreads();
+}));
 },
 async 'counsel-team'(view) {
 let curYear = '', items = [], years = [];
@@ -680,13 +695,14 @@ $(_lhD("I2N0")).value = '';
 const ok = await sendWithFiles(comp, text, async (b) => { const r = await api.post(_lhD("YXBpL3NjaG9vbC1jaGF0"), { ...b, anonymous: isAnon }); if (!data.items.some(x => x.id === r.item.id)) data.items.push(r.item); draw(); if (r.warning) toast(r.warning, _lhD("d2Fybg=="), 5000); }, $(_lhD("I2NmIGJ1dHRvblthcmlhLWxhYmVsPSJH4butaSJd")));
 if (!ok && text) $(_lhD("I2N0")).value = text;
 };
-S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6bWVzc2FnZQ=="), (m) => { if (data.items.some(x => x.id === m.id)) return; data.items.push({ ...m, attachments: m.attachments || [], mine: m.userId === S.user.id, reactions: {} }); draw(); }));
-S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6ZGVsZXRl"), ({ id }) => { const m = data.items.find(x => x.id === id); if (m) { m.deleted = true; draw(); } }));
+const reloadSchoolChat = async () => { data = await api.get(_lhD("YXBpL3NjaG9vbC1jaGF0")); draw(); };
+S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6bWVzc2FnZQ=="), (m) => { if (!data.items.some(x => x.id === m.id)) { data.items.push({ ...m, attachments: m.attachments || [], mine: m.userId === S.user.id, reactions: {} }); draw(); } reloadSchoolChat(); }));
+S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6ZGVsZXRl"), ({ id }) => { const m = data.items.find(x => x.id === id); if (m) { m.deleted = true; draw(); } reloadSchoolChat(); }));
 S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6aGFyZC1kZWxldGU="), ({ id }) => { data.items = data.items.filter(x => x.id !== id); draw(); }));
 S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6Y2xlYXI="), () => { data.items = []; draw(); }));
-S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6cmVjYWxs"), ({ id }) => { const m = data.items.find(x => x.id === id); if (m && !m.recalled) { m.recalled = true; m.text = ''; m.attachments = []; m.reactions = {}; draw(); } }));
+S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6cmVjYWxs"), ({ id }) => { const m = data.items.find(x => x.id === id); if (m && !m.recalled) { m.recalled = true; m.text = ''; m.attachments = []; m.reactions = {}; draw(); } reloadSchoolChat(); }));
 S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6bG9jaw=="), (x) => { data.locked = x.locked; data.lockReason = x.reason; draw(); }));
-S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6cmVhY3Q="), async () => { data = await api.get(_lhD("YXBpL3NjaG9vbC1jaGF0")); draw(); }));
+S.cleanups.push(live.on(_lhD("c2Nob29sLWNoYXQ6cmVhY3Q="), reloadSchoolChat));
 },
 async 'teacher-chat'(view) {
 let threads = (await api.get(_lhD("YXBpL3RlYWNoZXItY2hhdC90aHJlYWRz"))).items, current = null;
@@ -776,7 +792,17 @@ setTimeout(() => qEl.focus(), 50);
 },
 });
 };
-S.cleanups.push(live.on(_lhD("dGVhY2hlci1jaGF0Om1lc3NhZ2U="), async ({ threadId }) => { if (current?.id === threadId) { current = (await api.get(`${_lhD("YXBpL3RlYWNoZXItY2hhdC90aHJlYWRzLw==")}${threadId}`)).item; drawChat(); } refreshThreads(); }));
+S.cleanups.push(live.on(_lhD("dGVhY2hlci1jaGF0Om1lc3NhZ2U="), async ({ threadId }) => {
+const draft = $(_lhD("I2N0"))?.value || '';
+const hadFocus = document.activeElement?.id === _lhD("Y3Q=");
+if (current?.id === threadId) {
+current = (await api.get(`${_lhD("YXBpL3RlYWNoZXItY2hhdC90aHJlYWRzLw==")}${threadId}`)).item;
+drawChat();
+if (draft && $(_lhD("I2N0"))) $(_lhD("I2N0")).value = draft;
+if (hadFocus && $(_lhD("I2N0"))) $(_lhD("I2N0")).focus();
+}
+refreshThreads();
+}));
 },
 async 'teacher-list'(view) {
 const items = (await api.get(_lhD("YXBpL3RlYWNoZXJz"))).items;

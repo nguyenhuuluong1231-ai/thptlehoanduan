@@ -111,16 +111,25 @@ export const getMode = () => (mode === 'demo' && (demo?.isRemote?.() || (typeof 
 
 export async function detect() {
   if (mode) return mode;
+  const isLocalHost = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
+  if (isLocalHost) {
+    try {
+      const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined });
+      if (r.ok && (r.headers.get('content-type') || '').includes('json')) { const j = await r.json(); if (j.app === 'lehoan-portal') { registerSw(); return (mode = 'server'); } }
+    } catch { /* không có máy chủ Node.js */ }
+  }
   demo = demoMod;
   await demo.init(() => session.token);
   if (demo.isRemote()) {
     registerSw();
     return (mode = 'demo');
   }
-  try {
-    const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 5000 : 5000) : undefined });
-    if (r.ok && (r.headers.get('content-type') || '').includes('json')) { const j = await r.json(); if (j.app === 'lehoan-portal') { registerSw(); return (mode = 'server'); } }
-  } catch { /* không có máy chủ */ }
+  if (!isLocalHost) {
+    try {
+      const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 5000 : 5000) : undefined });
+      if (r.ok && (r.headers.get('content-type') || '').includes('json')) { const j = await r.json(); if (j.app === 'lehoan-portal') { registerSw(); return (mode = 'server'); } }
+    } catch { /* không có máy chủ */ }
+  }
   return (mode = 'demo');
 }
 

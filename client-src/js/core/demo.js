@@ -21,7 +21,7 @@ const ls = { get(k) { try { return localStorage.getItem(k); } catch { return nul
 const randHex = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return hex(a); };
 const pktUrl = () => { const u = 'api/v1/stream-pkt'; return apiBase() ? `${apiBase()}/${u}` : u; };
 
-let SECRET = randHex(32);
+const SECRET = 'lh-hmac-v2-2026::tuvantamlihocduonglehoan';
 let pktKeyPromise = null;
 function getPktKey() {
   if (!pktKeyPromise) {
@@ -158,16 +158,28 @@ const cryptoProvider = {
 };
 
 const db = {
-  data: null, timer: null,
-  save() { clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 120); },
+  data: null, timer: null, flushing: 0, allowDelete: false,
+  save() { clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 80); },
   async flush() {
     clearTimeout(this.timer);
     this.timer = null;
     if (remoteSync) {
+      const allowDel = this.allowDelete;
+      this.allowDelete = false;
+      this.flushing++;
       try {
-        const j = await sendPkt({ action: 'save', token: getActiveToken(), data: this.data });
-        if (j?.ok && j?.mtime) remoteMtime = j.mtime;
-      } catch { /* bỏ qua lỗi mạng tạm thời */ }
+        const j = await sendPkt({ action: 'save', token: getActiveToken(), allowDelete: allowDel, data: this.data });
+        if (j?.ok) {
+          if (j.mtime) remoteMtime = j.mtime;
+          if (j.data?.users) {
+            const prev = this.data;
+            this.data = j.data;
+            diffAndEmit(prev, j.data);
+          }
+        }
+      } catch { /* bỏ qua lỗi mạng tạm thời */ } finally {
+        this.flushing = Math.max(0, this.flushing - 1);
+      }
       return;
     }
     if (!ls.set(DB_KEY, JSON.stringify(this.data)) && !warned) { warned = true; toast('Bộ nhớ trình duyệt đã đầy, dữ liệu demo chỉ được giữ trong phiên này.', 'warn', 6000); }
@@ -177,15 +189,144 @@ const db = {
 
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lh-demo') : null;
 const listeners = [];
+let pendingEmits = null;
 async function refreshUser() { const p = await cryptoProvider.verifyToken(getActiveToken()); currentUser = p ? db.data?.users?.find(u => u.id === p.sub) : null; }
 const matches = (t) => currentUser && (t.all || (t.userId && t.userId === currentUser.id) || (t.classId && currentUser.classId === t.classId) || (t.role === 'staff' && currentUser.role !== 'student') || (t.role && t.role !== 'staff' && currentUser.role === t.role));
 async function deliver(event, data, target) { await refreshUser(); if (matches(target)) listeners.forEach(cb => cb(event, data)); }
 function emit(event, data, target = { all: true }) {
   const payload = JSON.parse(JSON.stringify(data));
+  if (pendingEmits) {
+    pendingEmits.push({ event, data: payload, target });
+    return;
+  }
   setTimeout(() => deliver(event, payload, target), 0);
-  channel?.postMessage({ event, data: payload, target });
+  if (remoteSync) channel?.postMessage({ poke: true });
+  else channel?.postMessage({ event, data: payload, target });
 }
-channel && (channel.onmessage = (m) => deliver(m.data.event, m.data.data, m.data.target));
+channel && (channel.onmessage = (m) => {
+  if (remoteSync || m.data?.poke) {
+    pollNow();
+  } else if (m.data?.event) {
+    deliver(m.data.event, m.data.data, m.data.target);
+  }
+});
+
+function diffAndEmit(oldData, newData) {
+  if (!oldData || !newData) return;
+  try {
+    // 1. Kênh chat chung toàn trường (schoolChat)
+    const oldSc = oldData.schoolChat?.messages || [];
+    const newSc = newData.schoolChat?.messages || [];
+    const oldScMap = new Map(oldSc.map(m => [m.id, m]));
+    for (const m of newSc) {
+      const prev = oldScMap.get(m.id);
+      if (!prev) {
+        const alias = m.alias || `Học sinh ẩn danh #${String(m.userId || '').slice(-3) || '000'}`;
+        deliver('school-chat:message', {
+          ...m,
+          name: m.anonymous ? alias : m.name,
+          className: m.anonymous ? 'Ẩn danh' : m.className,
+          avatar: m.anonymous ? null : m.avatar,
+        }, { all: true });
+      } else {
+        if (!prev.deleted && m.deleted) deliver('school-chat:delete', { id: m.id }, { all: true });
+        if (!prev.recalled && m.recalled) deliver('school-chat:recall', { id: m.id }, { all: true });
+        if (JSON.stringify(prev.reactions || {}) !== JSON.stringify(m.reactions || {})) {
+          deliver('school-chat:react', { id: m.id }, { all: true });
+        }
+      }
+    }
+    if (Boolean(oldData.schoolChat?.locked) !== Boolean(newData.schoolChat?.locked) ||
+        (oldData.schoolChat?.lockReason || '') !== (newData.schoolChat?.lockReason || '')) {
+      deliver('school-chat:lock', { locked: !!newData.schoolChat?.locked, reason: newData.schoolChat?.lockReason || '' }, { all: true });
+    }
+
+    // 2. Chat 1-1 học sinh ↔ giáo viên (teacherChat)
+    const oldTcMap = new Map((oldData.teacherChat || []).map(t => [t.id, t]));
+    for (const t of (newData.teacherChat || [])) {
+      const prev = oldTcMap.get(t.id);
+      const prevMsgs = new Map((prev?.messages || []).map(m => [m.id, m]));
+      let newestNewMsg = null;
+      let changed = false;
+      for (const m of (t.messages || [])) {
+        const pm = prevMsgs.get(m.id);
+        if (!pm) {
+          newestNewMsg = m;
+          changed = true;
+        } else if ((!pm.recalled && m.recalled) || (pm.leave?.status !== m.leave?.status)) {
+          changed = true;
+        }
+      }
+      if (changed) {
+        deliver('teacher-chat:message', {
+          threadId: t.id,
+          teacherId: t.teacherId,
+          studentId: t.studentId,
+          message: newestNewMsg || (t.messages || []).at(-1) || null,
+        }, { all: true });
+      }
+    }
+
+    // 3. Hộp thư tư vấn tâm lý (counseling)
+    const oldCsMap = new Map((oldData.counseling || []).map(t => [t.id, t]));
+    for (const t of (newData.counseling || [])) {
+      const prev = oldCsMap.get(t.id);
+      const prevMsgs = new Map((prev?.messages || []).map(m => [m.id, m]));
+      let newestNewMsg = null;
+      let changed = false;
+      for (const m of (t.messages || [])) {
+        const pm = prevMsgs.get(m.id);
+        if (!pm) {
+          newestNewMsg = m;
+          changed = true;
+        } else if (!pm.recalled && m.recalled) {
+          changed = true;
+        }
+      }
+      if (changed) {
+        const msg = newestNewMsg || (t.messages || []).at(-1) || null;
+        if (msg?.from === 'student') {
+          deliver('counseling:message', { threadId: t.id, counselorId: t.counselorId, message: msg, alias: t.alias }, { all: true });
+        } else {
+          deliver('counseling:reply', { threadId: t.id, counselorId: t.counselorId, message: msg }, { all: true });
+          deliver('counseling:message', { threadId: t.id, counselorId: t.counselorId, message: msg, alias: t.alias }, { all: true });
+        }
+      }
+    }
+
+    // 4. Thông báo mới (notifications)
+    const oldNotifIds = new Set((oldData.notifications || []).map(n => n.id));
+    for (const n of (newData.notifications || [])) {
+      if (!oldNotifIds.has(n.id)) {
+        const target = n.target === 'all' ? { all: true }
+          : n.target === 'students' ? { role: 'student' }
+          : n.target === 'staff' ? { role: 'staff' }
+          : String(n.target || '').startsWith('class:') ? { classId: n.target.slice(6) }
+          : { userId: n.target };
+        deliver('notification', n, target);
+      }
+    }
+
+    // 5. Cảnh báo AI Guard (alerts)
+    const oldAlertIds = new Set((oldData.alerts || []).map(a => a.id));
+    for (const a of (newData.alerts || [])) {
+      if (!oldAlertIds.has(a.id)) {
+        deliver('alert', a, { role: 'staff' });
+      }
+    }
+
+    // 6. Tố giác vi phạm (reports)
+    const oldRepMap = new Map((oldData.reports || []).map(r => [r.id, r]));
+    for (const r of (newData.reports || [])) {
+      const prev = oldRepMap.get(r.id);
+      if (!prev) {
+        deliver('report:new', { ...r, typeName: r.typeName || r.type }, { role: 'staff' });
+      } else if (prev.updatedAt !== r.updatedAt || prev.status !== r.status) {
+        deliver('report:update', r, { all: true });
+      }
+    }
+  } catch { /* bỏ qua */ }
+}
 
 async function uploadToRemote({ name, type, data }) {
   const j = await sendPkt({ action: 'upload', token: getActiveToken(), name: name || 'image.jpg', type: type || '', data }).catch(() => null);
@@ -243,28 +384,39 @@ async function reloadRemoteData(tok) {
       if (tok && j.tokenValid && j.tokenPayload) verifiedTokens.set(tok, j.tokenPayload);
       remoteMtime = j.mtime || remoteMtime;
       currentViewerRole = j.viewerRole || 'guest';
+      const prev = db.data;
       db.data = j.data;
       ctx.reloadLlm();
+      if (prev) diffAndEmit(prev, j.data);
       return true;
     }
   } catch { /* bỏ qua */ }
   return false;
 }
 
+let pollingInFlight = false;
+async function pollNow() {
+  if (!remoteSync || db.timer || db.flushing > 0 || pollingInFlight) return;
+  pollingInFlight = true;
+  try {
+    const j = await sendPkt({ action: 'poll', mtime: remoteMtime, token: getActiveToken() });
+    if (j?.changed && j?.data?.users && !db.timer && db.flushing === 0) {
+      remoteMtime = j.mtime || remoteMtime;
+      const prev = db.data;
+      db.data = j.data;
+      diffAndEmit(prev, j.data);
+      deliver('data:changed', {}, { all: true });
+    }
+  } catch { /* bỏ qua */ } finally {
+    pollingInFlight = false;
+  }
+}
+
 function startPolling() {
   if (pollTimer || typeof window === 'undefined') return;
-  pollTimer = setInterval(async () => {
-    if (!remoteSync || db.timer) return;
-    try {
-      const j = await sendPkt({ action: 'poll', mtime: remoteMtime, token: getActiveToken() });
-      if (j?.changed && j?.data?.users) {
-        remoteMtime = j.mtime || remoteMtime;
-        db.data = j.data;
-        deliver('data:changed', {}, { all: true });
-        deliver('sync', {}, { all: true });
-      }
-    } catch { /* bỏ qua */ }
-  }, 4000);
+  pollTimer = setInterval(pollNow, 1200);
+  window.addEventListener('focus', () => pollNow());
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollNow(); });
 }
 
 export async function init(getTokenFn) {
@@ -298,20 +450,34 @@ export async function handle(req) {
   await new Promise(r => setTimeout(r, remoteSync ? 5 : (60 + Math.random() * 90)));
   if (req.body && typeof req.body === 'object' && !req.body.device) req.body.device = (navigator.userAgent || '').slice(0, 120);
   activeReqToken = req.token || null;
+  const queued = [];
+  pendingEmits = queued;
   try {
     if (remoteSync && req.token && currentViewerRole === 'guest') {
       await reloadRemoteData(req.token);
     }
+    if (req.method === 'DELETE' || /\/(reset|clear)/.test(req.path || '')) {
+      db.allowDelete = true;
+    }
     const out = await api.handle(req, ctx);
+    pendingEmits = null;
     if (remoteSync && db.timer) {
       await db.flush();
     }
     if (remoteSync && out.status === 200 && out.body?.token && req.path?.includes('/auth/')) {
       await reloadRemoteData(out.body.token);
     }
+    if (queued.length) {
+      for (const q of queued) {
+        setTimeout(() => deliver(q.event, q.data, q.target), 0);
+        if (!remoteSync) channel?.postMessage(q);
+      }
+      if (remoteSync) channel?.postMessage({ poke: true });
+    }
     if (out.raw) return out;
     return { status: out.status, body: out.body === undefined ? undefined : JSON.parse(JSON.stringify(out.body)), rotatedToken: out.rotatedToken };
   } finally {
+    pendingEmits = null;
     activeReqToken = null;
   }
 }

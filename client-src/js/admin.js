@@ -109,15 +109,37 @@ async function boot() {
   } catch { session.clear(); return (location.href = staffLoginUrl()); }
   shell();
   live.connect();
-  live.on('alert', (a) => { toast(`Cảnh báo ${LEVEL[a.level]?.[0] || ''}: ${a.title}`, a.level === 'yellow' ? 'warn' : 'bad', 6000); refreshCounts(); });
-  live.on('report:new', (r) => { toast(`Tố giác mới ${r.id}: ${r.typeName}`, 'warn', 5000); refreshCounts(); });
-  live.on('counseling:message', () => refreshCounts(400));
-  live.on('teacher-chat:message', () => refreshCounts(600));
-  live.on('school-chat:message', (m) => { if (m.userId !== S.user.id) refreshCounts(400); });
-  live.on('notification', () => refreshCounts());
+  live.on('alert', (a) => { toast(`Cảnh báo ${LEVEL[a.level]?.[0] || ''}: ${a.title}`, a.level === 'yellow' ? 'warn' : 'bad', 6000); refreshCounts(0); });
+  live.on('report:new', (r) => { toast(`Tố giác mới ${r.id}: ${r.typeName}`, 'warn', 5000); refreshCounts(0); });
+  live.on('counseling:message', ({ counselorId, message, alias }) => {
+    if (message && !message.recalled && message.from === 'student' && (isAdmin() || !counselorId || counselorId === S.user.id)) {
+      toast(`💗 Tư vấn tâm lý · ${alias || 'Học sinh'}: ${(message.text || '📎 Đã gửi tệp đính kèm').slice(0, 80)}`, 'info', 4200);
+    }
+    refreshCounts(0);
+  });
+  live.on('counseling:reply', () => refreshCounts(100));
+  live.on('teacher-chat:message', ({ message, teacherId }) => {
+    if (message && !message.recalled && message.from === 'student' && (isAdmin() || !teacherId || teacherId === S.user.id)) {
+      toast(`✉️ Tin nhắn học sinh: ${(message.text || '📎 Đã gửi tệp đính kèm').slice(0, 80)}`, 'info', 4200);
+    }
+    refreshCounts(0);
+  });
+  live.on('school-chat:message', (m) => {
+    if (m.userId !== S.user.id) {
+      toast(`💬 Chat chung · ${m.name || 'Học sinh'}: ${(m.text || '📎 Đã gửi tệp đính kèm').slice(0, 80)}`, 'info', 4000);
+      refreshCounts(0);
+    }
+  });
+  live.on('notification', (n) => {
+    if (n?.title && n.type !== 'counseling' && n.type !== 'report') {
+      toast(n.title + (n.content ? ' · ' + n.content.slice(0, 70) : ''), n.type === 'warning' || n.type === 'urgent' ? 'warn' : 'info', 4200);
+    }
+    refreshCounts(0);
+  });
   // Đồng bộ lại khi có mạng trở lại hoặc quay lại app / tab sau một lúc
   const safe = () => { const a = document.activeElement; return !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.value) && !document.querySelector('.backdrop, .lightbox, .attach-strip:not([hidden])'); };
   const resync = () => { refreshCounts(0); if (safe()) render(); };
+  live.on('sync', () => { toast('Đã đồng bộ dữ liệu mới.', 'info'); resync(); });
   live.on('connection', ({ online }) => { if (online && S.wasOffline) resync(); S.wasOffline = !online; });
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 15000) resync(); });
@@ -366,12 +388,20 @@ async function threadsInbox(view, tab) {
     $('#cf').onsubmit = async (e) => {
       e.preventDefault(); const text = $('#ct').value.trim(); if (!text && !comp.has()) return; $('#ct').value = '';
       const btn = $('#cf button.btn.icon:not(.attach-btn)'); btn && (btn.disabled = true);
-      try { const attachments = comp.has() ? await comp.upload(api.upload) : []; await fn({ text, attachments }); comp.clear(); openT(); } catch (er) { showError(er); if (text) $('#ct').value = text; } finally { btn && (btn.disabled = false); }
+      try { const attachments = comp.has() ? await comp.upload(api.upload) : []; await fn({ text, attachments }); comp.clear(); draw(); } catch (er) { showError(er); if (text) $('#ct').value = text; } finally { btn && (btn.disabled = false); }
     };
   };
+  const refreshLive = async (threadId) => {
+    const draft = $('#ct')?.value || '';
+    const hadFocus = document.activeElement?.id === 'ct';
+    await draw();
+    if (current === threadId && draft && $('#ct')) $('#ct').value = draft;
+    if (hadFocus && $('#ct')) $('#ct').focus();
+  };
   await draw();
-  S.cleanups.push(live.on('counseling:message', ({ threadId, counselorId }) => { if (tab === 'counsel' && (isAdmin() || !counselorId || counselorId === S.user.id)) { if (current === threadId) openT(); else draw(); } }));
-  S.cleanups.push(live.on('teacher-chat:message', ({ threadId }) => { if (tab === 'teacher') { if (current === threadId) openT(); else draw(); } }));
+  S.cleanups.push(live.on('counseling:message', ({ threadId, counselorId }) => { if (tab === 'counsel' && (isAdmin() || !counselorId || counselorId === S.user.id)) refreshLive(threadId); }));
+  S.cleanups.push(live.on('counseling:reply', ({ threadId, counselorId }) => { if (tab === 'counsel' && (isAdmin() || !counselorId || counselorId === S.user.id)) refreshLive(threadId); }));
+  S.cleanups.push(live.on('teacher-chat:message', ({ threadId }) => { if (tab === 'teacher') refreshLive(threadId); }));
 }
 
 // =============================================================================
@@ -428,6 +458,10 @@ const PAGES = {
     addEventListener('resize', onResize); S.cleanups.push(() => removeEventListener('resize', onResize));
     S.cleanups.push(live.on('report:new', () => PAGES.dashboard(view)));
     S.cleanups.push(live.on('report:update', () => PAGES.dashboard(view)));
+    S.cleanups.push(live.on('counseling:message', () => PAGES.dashboard(view)));
+    S.cleanups.push(live.on('counseling:reply', () => PAGES.dashboard(view)));
+    S.cleanups.push(live.on('teacher-chat:message', () => PAGES.dashboard(view)));
+    S.cleanups.push(live.on('alert', () => PAGES.dashboard(view)));
     $$('[data-r]', view).forEach(tr => tr.onclick = () => reportDetail(tr.dataset.r));
   },
 
@@ -660,6 +694,9 @@ const PAGES = {
 
   async chatmod(view) {
     const draw = async () => {
+      const draft = $('#ct', view)?.value || '';
+      const hadFocus = document.activeElement?.id === 'ct';
+      const reasonDraft = document.activeElement?.id === 'reason' ? $('#reason', view)?.value : null;
       const r = await api.get('api/admin/school-chat');
       view.innerHTML = head('Quản trị kênh chat chung toàn trường', 'Theo dõi luồng tin nhắn công cộng, gỡ tin không phù hợp, cảnh cáo hoặc tạm cấm tài khoản vi phạm.') + `
       <div class="grid g-main">
@@ -667,12 +704,14 @@ const PAGES = {
           <div class="chat-body" id="cb">${r.items.map(m => `<div class="msg" style="max-width:100%"><span>${m.anonymous ? `<span class="avatar sm" style="background:var(--violet);color:#fff">${icon('eyeOff')}</span>` : avatar({ id: m.userId, name: m.name, avatar: m.avatar }, 'sm')}</span><div style="min-width:0;flex:1"><div class="who"><b style="color:${m.anonymous ? 'var(--violet)' : 'var(--ink)'}">${esc(m.name)}</b><span>${esc(m.className)}</span>${m.anonymous ? badge('Ẩn danh', 'violet') : ''}<span>${fmtTime(m.at)} · ${fmtDate(m.at)}</span>${m.flagged ? badge('Đã lọc từ ngữ', 'warn') : ''}${m.deleted ? badge('Đã gỡ', 'bad') : ''}${m.recalled ? badge('Đã thu hồi', 'warn') : ''}${r.warnings[m.userId] ? badge(`${r.warnings[m.userId]} cảnh cáo`, 'bad') : ''}</div><div class="row nowrap" style="gap:8px;align-items:flex-start">${m.deleted ? `<div class="bubble deleted">${bubbleBody(m)}</div>` : sbubble(m, m.flagged ? 'border-color:var(--warn)' : '')}${m.role !== 'staff' && !m.deleted ? `<div class="row nowrap" style="gap:2px;flex:none"><button class="btn icon ghost sm" data-del="${m.id}" title="Gỡ tin nhắn">${icon('trash')}</button><button class="btn icon ghost sm" data-warn="${m.userId}" title="Cảnh cáo">${icon('alert')}</button><button class="btn icon ghost sm" data-mute="${m.userId}" title="Cấm chat">${icon('volumeX')}</button></div>` : ''}</div></div></div>`).join('')}</div>
           <form class="chat-input" id="cf"><textarea id="ct" rows="1" placeholder="Gửi thông báo vào kênh với tư cách nhà trường…"></textarea><button class="btn icon">${icon('send')}</button></form></section>
         <aside class="stack lg">
-          <section class="card pad stack"><b>${icon('lock')} Khóa kênh chat</b><p class="small ink2">Tạm dừng học sinh gửi tin (ví dụ trong giờ kiểm tra).</p><input class="input" id="reason" placeholder="Lý do hiển thị cho học sinh" value="${esc(r.lockReason || '')}"><button class="btn ${r.locked ? 'ok' : 'danger soft'}" id="lock">${r.locked ? `${icon('unlock')} Mở lại kênh chat` : `${icon('lock')} Khóa kênh chat`}</button></section>
+          <section class="card pad stack"><b>${icon('lock')} Khóa kênh chat</b><p class="small ink2">Tạm dừng học sinh gửi tin (ví dụ trong giờ kiểm tra).</p><input class="input" id="reason" placeholder="Lý do hiển thị cho học sinh" value="${esc(reasonDraft ?? r.lockReason ?? '')}"><button class="btn ${r.locked ? 'ok' : 'danger soft'}" id="lock">${r.locked ? `${icon('unlock')} Mở lại kênh chat` : `${icon('lock')} Khóa kênh chat`}</button></section>
           <section class="card"><div class="card-head"><h2>${icon('volumeX')} Đang bị cấm chat (${r.muted.length})</h2></div><div class="card-body list">${r.muted.map(u => `<div class="item">${avatar(u, 'sm')}<div class="grow"><b class="small">${esc(u.name)}</b><div class="xs muted">${u.warnings} cảnh cáo</div></div><button class="btn soft sm" data-unmute="${u.id}">Bỏ cấm</button></div>`).join('') || '<span class="small muted">Không có tài khoản bị cấm</span>'}</div></section>
           <section class="card pad stack"><b>${icon('shieldCheck')} Bộ lọc tự động</b><p class="small ink2">Ngôn từ phản cảm được che bằng dấu *. Sau 3 lần vi phạm, tài khoản tự động bị cấm chat. Bật/tắt trong mục AI Guard.</p></section>
         </aside>
       </div>`;
       const cb = $('#cb'); cb.scrollTop = cb.scrollHeight;
+      if (draft && $('#ct')) $('#ct').value = draft;
+      if (hadFocus && $('#ct')) $('#ct').focus();
       $$('[data-del]', view).forEach(b => b.onclick = async () => { await api.del(`api/admin/school-chat/${b.dataset.del}`); toast('Đã gỡ tin nhắn.', 'ok'); draw(); });
       $$('[data-warn]', view).forEach(b => b.onclick = async () => { const x = await api.post(`api/admin/school-chat/users/${b.dataset.warn}/warn`); toast(`Đã cảnh cáo (lần ${x.warnings}).`, 'ok'); draw(); });
       $$('[data-mute]', view).forEach(b => b.onclick = async () => { if (!await confirmDialog({ title: 'Cấm chat', message: 'Tạm cấm tài khoản này gửi tin trên kênh chung?', ok: 'Cấm chat', tone: 'danger' })) return; await api.post(`api/admin/school-chat/users/${b.dataset.mute}/mute`, { muted: true }); toast('Đã cấm chat.', 'ok'); draw(); });
@@ -680,11 +719,14 @@ const PAGES = {
       $('#lock').onclick = async () => { await api.put('api/admin/school-chat/lock', { locked: !r.locked, reason: $('#reason').value }); toast(r.locked ? 'Đã mở kênh chat.' : 'Đã khóa kênh chat.', 'ok'); draw(); };
       $('#ct').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#cf').requestSubmit(); } });
       const comp = attachComposer($('#cf'));
-      $('#cf').onsubmit = async (e) => { e.preventDefault(); const t = $('#ct').value.trim(); if (!t && !comp.has()) return; try { const attachments = comp.has() ? await comp.upload(api.upload) : []; await api.post('api/school-chat', { text: t, attachments }); comp.clear(); draw(); } catch (er) { showError(er); } };
+      $('#cf').onsubmit = async (e) => { e.preventDefault(); const t = $('#ct').value.trim(); if (!t && !comp.has()) return; $('#ct').value = ''; try { const attachments = comp.has() ? await comp.upload(api.upload) : []; await api.post('api/school-chat', { text: t, attachments }); comp.clear(); draw(); } catch (er) { showError(er); if (t) $('#ct').value = t; } };
     };
     await draw();
     S.cleanups.push(live.on('school-chat:message', () => draw()));
     S.cleanups.push(live.on('school-chat:recall', () => draw()));
+    S.cleanups.push(live.on('school-chat:delete', () => draw()));
+    S.cleanups.push(live.on('school-chat:react', () => draw()));
+    S.cleanups.push(live.on('school-chat:lock', () => draw()));
   },
 
   // ---------------------------------------------------------------- Trắc nghiệm

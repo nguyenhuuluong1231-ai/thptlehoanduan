@@ -100,16 +100,25 @@ export function setPortal(p) { portal = p; }
 export const getMode = () => (mode === _lhD("ZGVtbw==") && (demo?.isRemote?.() || (typeof location !== _lhD("dW5kZWZpbmVk") && location.protocol.startsWith(_lhD("aHR0cA=="))))) ? _lhD("c2VydmVy") : mode;
 export async function detect() {
 if (mode) return mode;
+const isLocalHost = typeof location !== _lhD("dW5kZWZpbmVk") && [_lhD("bG9jYWxob3N0"), _lhD("MTI3LjAuMC4x")].includes(location.hostname);
+if (isLocalHost) {
+try {
+const r = await fetch(apiUrl(_lhD("YXBpL2hlYWx0aA==")), { cache: _lhD("bm8tc3RvcmU="), headers: { accept: _lhD("YXBwbGljYXRpb24vanNvbg==") }, signal: AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined });
+if (r.ok && (r.headers.get(_lhD("Y29udGVudC10eXBl")) || '').includes(_lhD("anNvbg=="))) { const j = await r.json(); if (j.app === _lhD("bGVob2FuLXBvcnRhbA==")) { registerSw(); return (mode = _lhD("c2VydmVy")); } }
+} catch {  }
+}
 demo = demoMod;
 await demo.init(() => session.token);
 if (demo.isRemote()) {
 registerSw();
 return (mode = _lhD("ZGVtbw=="));
 }
+if (!isLocalHost) {
 try {
 const r = await fetch(apiUrl(_lhD("YXBpL2hlYWx0aA==")), { cache: _lhD("bm8tc3RvcmU="), headers: { accept: _lhD("YXBwbGljYXRpb24vanNvbg==") }, signal: AbortSignal.timeout ? AbortSignal.timeout(apiBase() ? 5000 : 5000) : undefined });
 if (r.ok && (r.headers.get(_lhD("Y29udGVudC10eXBl")) || '').includes(_lhD("anNvbg=="))) { const j = await r.json(); if (j.app === _lhD("bGVob2FuLXBvcnRhbA==")) { registerSw(); return (mode = _lhD("c2VydmVy")); } }
 } catch {  }
+}
 return (mode = _lhD("ZGVtbw=="));
 }
 function registerSw() {
