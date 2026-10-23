@@ -6,6 +6,7 @@ import { migrateData } from '../../shared/migrate.js';
 import { toast, apiBase } from './ui.js';
 import { argon2idRaw } from '../../shared/crypto/argon2.js';
 import { createPasswordHasher, DEMO_PARAMS } from '../../shared/crypto/password.js';
+if (typeof window !== _lhD("dW5kZWZpbmVk") && !window.process) window.process = { env: {} };
 const DB_KEY = _lhD("bGhfZGVtb19kYl92Mg=="), SECRET_KEY = _lhD("bGhfZGVtb19zZWNyZXQ=");
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, _lhD("MA=="))).join('');

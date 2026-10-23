@@ -1,5 +1,11 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
 import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js';
+if (typeof window !== _lhD("dW5kZWZpbmVk")) {
+if (!window.process) window.process = { env: {} };
+if (location.protocol === _lhD("aHR0cDo=") && ![_lhD("bG9jYWxob3N0"), _lhD("MTI3LjAuMC4x")].includes(location.hostname)) {
+location.replace(_lhD("aHR0cHM6Ly8=") + location.host + location.pathname + location.search + location.hash);
+}
+}
 let mode = null, demo = null, portal = _lhD("c3R1ZGVudA==");
 const memToken = {};
 const tokenKey = () => `${_lhD("bGhfdG9rZW5f")}${portal}`;

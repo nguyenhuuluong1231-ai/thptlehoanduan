@@ -26,7 +26,7 @@ function renderSvg(code) {
 // kiểm thử tự động/CI chạy trên máy chủ riêng, không công khai) — khi đó API trả thêm mã thật dạng chữ,
 // để script kiểm thử có thể "nhìn thấy" mã như một trình kiểm thử tự động mà KHÔNG cần giải ảnh SVG.
 // KHÔNG đặt biến này trên máy chủ thật đang phục vụ người dùng — nó tắt tác dụng chống dò của CAPTCHA.
-const TEST_MODE = process.env.ALLOW_TEST_CAPTCHA === '1';
+const TEST_MODE = typeof process !== 'undefined' && process.env?.ALLOW_TEST_CAPTCHA === '1';
 
 export function createCaptcha() {
   const now = Date.now();

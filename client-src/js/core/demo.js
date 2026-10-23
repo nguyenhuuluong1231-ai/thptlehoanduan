@@ -9,6 +9,8 @@ import { toast, apiBase } from './ui.js';
 import { argon2idRaw } from '../../shared/crypto/argon2.js';
 import { createPasswordHasher, DEMO_PARAMS } from '../../shared/crypto/password.js';
 
+if (typeof window !== 'undefined' && !window.process) window.process = { env: {} };
+
 const DB_KEY = 'lh_demo_db_v2', SECRET_KEY = 'lh_demo_secret';
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');

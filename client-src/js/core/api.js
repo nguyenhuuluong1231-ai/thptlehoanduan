@@ -2,6 +2,13 @@
 // cùng bộ API ngay trong trình duyệt (chế độ demo, dữ liệu lưu trên máy người xem).
 import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js';
 
+if (typeof window !== 'undefined') {
+  if (!window.process) window.process = { env: {} };
+  if (location.protocol === 'http:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+    location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+  }
+}
+
 let mode = null, demo = null, portal = 'student';
 const memToken = {};
 const tokenKey = () => `lh_token_${portal}`;
