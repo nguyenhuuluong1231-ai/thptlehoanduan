@@ -1,0 +1,48 @@
+# Lấy tệp APK đã build (từ "Build APK Android") và phát hành thành một bản
+# Release trên GitHub, để có đường dẫn tải trực tiếp (không cần đăng nhập
+# qua trang Actions, dễ tải trên điện thoại hơn).
+name: Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID của "Build APK Android" cần lấy (để trống = lần chạy thành công gần nhất)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Xác định lần chạy build cần lấy APK
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          RUN_ID="${{ github.event.inputs.run_id }}"
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh run list --repo "${{ github.repository }}" --workflow=android-apk.yml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "Dùng run_id=$RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Tải APK đã build (artifact)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "${{ steps.find.outputs.run_id }}" --repo "${{ github.repository }}" --name LeHoan-APK --dir ./apk-out
+
+      - name: Tạo bản phát hành (Release) kèm tệp APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="apk-$(date +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" ./apk-out/*.apk --repo "${{ github.repository }}" --title "LeHoan APK ($TAG)" --notes "Tệp APK build tự động từ GitHub Actions (run ${{ steps.find.outputs.run_id }})."
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        id: rel

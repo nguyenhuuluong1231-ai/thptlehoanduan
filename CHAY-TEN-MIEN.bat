@@ -41,4 +41,3 @@ if "%MODE%"=="2" (
   %CF_CMD% tunnel --url http://localhost:3000
 )
 pause
-

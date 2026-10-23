@@ -5,4 +5,3 @@ cd /d "%~dp0"
 node scripts/upload-cpanel.mjs
 echo.
 pause
-
