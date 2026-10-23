@@ -339,8 +339,76 @@ function makeLlm(c = {}) {
   return createLlm({ AI_PROVIDER: c.provider === 'custom' ? 'openai' : c.provider, AI_API_KEY: c.apiKey || '', AI_MODEL: c.model || '', AI_BASE_URL: c.baseUrl || '' });
 }
 
+const backupsClient = {
+  async list() {
+    if (remoteSync) {
+      const j = await sendPkt({ action: 'backup-list', token: getActiveToken() }).catch(() => null);
+      return { items: j?.items || [] };
+    }
+    return { items: [] };
+  },
+  async create() {
+    if (remoteSync) {
+      const j = await sendPkt({ action: 'backup-create', token: getActiveToken() });
+      if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || 'Không thể tạo bản sao lưu.');
+      return { created: j.created, items: j.items || [] };
+    }
+    return { created: `backup-${Date.now()}.json`, items: [] };
+  },
+  async remove(id) {
+    if (remoteSync) {
+      const j = await sendPkt({ action: 'backup-delete', id, token: getActiveToken() });
+      if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || 'Không thể xóa bản sao lưu.');
+      return { items: j.items || [] };
+    }
+    return { items: [] };
+  },
+  async download(id) {
+    if (remoteSync) {
+      const j = await sendPkt({ action: 'backup-download', id, token: getActiveToken() });
+      if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || 'Không thể tải bản sao lưu.');
+      return { id: j.id, backup: j.backup };
+    }
+    return { id: id || `backup-${new Date().toISOString().slice(0, 10)}.json`, backup: db.data };
+  },
+  async restore(id) {
+    if (remoteSync) {
+      const j = await sendPkt({ action: 'backup-restore', id, token: getActiveToken() });
+      if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || 'Không thể khôi phục bản sao lưu.');
+      if (j.mtime) remoteMtime = j.mtime;
+      if (j.data?.users) {
+        const prev = db.data;
+        db.data = j.data;
+        diffAndEmit(prev, j.data);
+        deliver('data:changed', {}, { all: true });
+      }
+      return { items: j.items || [] };
+    }
+    throw new HttpError(400, 'Chỉ hỗ trợ trên máy chủ.');
+  },
+  async importData(backup) {
+    if (!backup?.users || !Array.isArray(backup.users)) throw new HttpError(400, 'Tệp sao lưu không hợp lệ.');
+    if (remoteSync) {
+      const j = await sendPkt({ action: 'backup-import', backup, token: getActiveToken() });
+      if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || 'Không thể nhập bản sao lưu.');
+      if (j.mtime) remoteMtime = j.mtime;
+      if (j.data?.users) {
+        const prev = db.data;
+        db.data = j.data;
+        diffAndEmit(prev, j.data);
+        deliver('data:changed', {}, { all: true });
+      }
+      return { items: j.items || [] };
+    }
+    db.data = backup;
+    await db.flush();
+    deliver('data:changed', {}, { all: true });
+    return { items: [] };
+  },
+};
+
 const api = buildApi();
-const ctx = { db, crypto: cryptoProvider, emit, mode: 'demo', llm: null, makeLlm,
+const ctx = { db, backups: backupsClient, crypto: cryptoProvider, emit, mode: 'demo', llm: null, makeLlm,
   reloadLlm() { const c = db.data?.aiConfig; this.llm = (c?.provider && c.provider !== 'off' && c.apiKey) ? makeLlm(c) : null; return this.llm; },
   lanUrls: () => (typeof location !== 'undefined' ? [location.origin] : []),
   reseed: () => db.reseed(),

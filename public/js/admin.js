@@ -2,7 +2,7 @@ const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return at
 import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js';
 import { icon, drumArt } from './core/icons.js';
 import { $, $$, esc, toast, modal, confirmDialog, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, donut, gauge, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
+fmtDate, fmtTime, fmtDateTime, fmtSize, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
 const aiOfflineNote = (ai) => getMode() === _lhD("ZGVtbw==") && !ai?.enabled && isNativeApp() ? `${_lhD("PGRpdiBjbGFzcz0iY2FyZCBzb2Z0IHNtYWxsIHJvdyBub3dyYXAiIHN0eWxlPSJwYWRkaW5nOjEwcHggMTRweDtnYXA6OHB4Ij4=")}${icon(_lhD("aW5mbw=="))}${_lhD("PHNwYW4+QXBwIMSRYW5nIOG7nyA8Yj5i4bqjbiB0cuG6o2kgbmdoaeG7h208L2I+IG7Dqm4gZMO5bmcgY2jhur8gxJHhu5kgY8ahIGLhuqNuLiDEkMSDbmcgeHXhuqV0IOKGkiA8Yj5Nw6F5IGNo4bunIHRyxrDhu51uZzwvYj4g4oaSIG5o4bqtcCDEkeG7i2EgY2jhu4kgbcOheSBjaOG7pyDEkeG7gyBkw7luZyBBSSBj4bunYSBuaMOgIHRyxrDhu51uZy48L3NwYW4+PC9kaXY+")}` : '';
 const aiPill = (ai) => ai?.enabled ? `${_lhD("PHNwYW4gY2xhc3M9ImJhZGdlIHZpb2xldCIgdGl0bGU9Ig==")}${esc(ai.label || '')}${_lhD("Ij4=")}${icon(_lhD("c3BhcmtsZXM="))}${_lhD("IEFJIHRo4bqtdCDEkWFuZyBi4bqtdDwvc3Bhbj4=")}` : _lhD("PHNwYW4gY2xhc3M9ImJhZGdlIiB0aXRsZT0iVGjDqm0ga2jDs2EgQVBJIHRyb25nIC5lbnYgxJHhu4MgYuG6rXQgQUkiPkLhu5kgbHXhuq10IMK3IGNoxrBhIGLhuq10IEFJPC9zcGFuPg==");
 function autoGrow(ta, onEnter) {
@@ -53,6 +53,7 @@ const ADMIN_NAV = [
 { id: _lhD("Y29udGVudA=="), label: _lhD("Q+G6qW0gbmFuZyAmIGLhuqNuIHRpbg=="), icon: _lhD("Ym9va09wZW4=") },
 { id: _lhD("YnJvYWRjYXN0"), label: _lhD("UGjDoXQgdGjDtG5nIGLDoW8="), icon: _lhD("bWVnYXBob25l") },
 { id: _lhD("c2V0dGluZ3M="), label: _lhD("R2lhbyBkaeG7h24gJiBj4bqldSBow6xuaA=="), icon: _lhD("cGFsZXR0ZQ==") },
+{ id: _lhD("YmFja3Vwcw=="), label: _lhD("U2FvIGzGsHUgJiBraMO0aSBwaOG7pWM="), icon: _lhD("ZG93bmxvYWQ=") },
 { id: _lhD("bG9ncw=="), label: _lhD("Tmjhuq10IGvDvSAmIGfDs3Agw70="), icon: _lhD("aGlzdG9yeQ==") },
 { id: _lhD("YXBwLWd1aWRl"), label: _lhD("SMaw4bubbmcgZOG6q24gdOG6o2kgQXBw"), icon: _lhD("c21hcnRwaG9uZQ==") },
 { id: _lhD("YWJvdXQ="), label: _lhD("R2nhu5tpIHRoaeG7h3UgdHJhbmcgd2Vi"), icon: _lhD("aW5mbw==") },
@@ -863,7 +864,7 @@ ${fieldHtml({ name: _lhD("emFsb1VybA=="), label: _lhD("TGluayBaYWxvIChuw7p0IFphb
 ${fieldHtml({ name: _lhD("Y3JlYXRvck5hbWU="), label: _lhD("VMOhYyBnaeG6oyAvIE5nxrDhu51pIHThuqFvIHRyYW5nIHdlYg=="), value: s.creatorName || _lhD("VsWpIE5ndXnhu4VuIEFuIEtoYW5n"), full: true })}
 ${fieldHtml({ name: _lhD("c2l0ZUludHJv"), label: _lhD("R2nhu5tpIHRoaeG7h3UgdHJhbmcgd2ViIChoaeG7g24gdGjhu4sg4bufIGNow6JuIHRyYW5nICYgbeG7pWMgR2nhu5tpIHRoaeG7h3Up"), type: _lhD("dGV4dGFyZWE="), rows: 3, value: s.siteIntro || _lhD("Q+G7lW5nIEjhu41jIMSQxrDhu51uZyBT4buRIFRyxrDhu51uZyBUSFBUIEzDqiBIb8OgbiBsw6AgbuG7gW4gdOG6o25nIHRy4buxYyB0dXnhur9uIGjhu5cgdHLhu6MgaOG7jWMgc2luaCB04buRIGdpw6FjIHZpIHBo4bqhbSDhuqluIGRhbmgsIHTGsCB24bqlbiB0w6JtIGzDvSBo4buNYyDEkcaw4budbmcgMjQvNywga+G6v3QgbuG7kWkgdGjhuqd5IGPDtCwgdGhpIHRy4bqvYyBuZ2hp4buHbSBwaMOhcCBsdeG6rXQgdsOgIHTDrWNoIGjhu6NwIHRyw60gdHXhu4cgbmjDom4gdOG6oW8gKEFJKSBwaMOybmcgY2jhu5FuZyBs4burYSDEkeG6o28ga2jDtG5nIGdpYW4gbeG6oW5nLg=="), full: true })}
 ${fieldHtml({ name: _lhD("bG9nbw=="), label: _lhD("TG9nbyBjaMOtbmggdGjhu6lj"), type: _lhD("aW1hZ2U="), value: s.logo, full: true })}
-${fieldHtml({ name: _lhD("bWFycXVlZQ=="), label: _lhD("Qmnhu4N1IG5n4buvIHRow7RuZyBiw6FvIGNo4bqheSAobeG7l2kgZMOybmcgbeG7mXQgdGjDtG5nIMSRaeG7h3Ap"), type: _lhD("dGV4dGFyZWE="), rows: 4, value: s.marquee.join(_lhD("Cg==")), full: true })}${_lhD("CiAgICAgICAgPC9kaXY+PC9zZWN0aW9uPgogICAgICAgIDxzZWN0aW9uIGNsYXNzPSJjYXJkIj48ZGl2IGNsYXNzPSJjYXJkLWhlYWQiPjxoMj4=")}${icon(_lhD("c2xpZGVycw=="))}${_lhD("IE1vZHVsZSB0csOqbiBD4buVbmcgSOG7jWMgU2luaDwvaDI+PC9kaXY+PGRpdiBjbGFzcz0iY2FyZC1ib2R5IHN0YWNrIiBzdHlsZT0iZ2FwOjEwcHgiPg==")}${Object.entries(modules).map(([k, l]) => `${_lhD("PGxhYmVsIGNsYXNzPSJzd2l0Y2ggcm93IGJldHdlZW4iIHN0eWxlPSJ3aWR0aDoxMDAlIj48c3BhbiBjbGFzcz0ic21hbGwiPg==")}${esc(l)}${_lhD("PC9zcGFuPjxzcGFuIGNsYXNzPSJyb3cgbm93cmFwIj48aW5wdXQgdHlwZT0iY2hlY2tib3giIG5hbWU9Im1vZF8=")}${k}${_lhD("IiA=")}${s.modules[k] !== false ? _lhD("Y2hlY2tlZA==") : ''}${_lhD("PjxzcGFuIGNsYXNzPSJ0cmFjayI+PC9zcGFuPjwvc3Bhbj48L2xhYmVsPg==")}`).join('')}${_lhD("PC9kaXY+PC9zZWN0aW9uPgogICAgICA8L2Rpdj4KICAgICAgPHNlY3Rpb24gY2xhc3M9ImNhcmQiPjxkaXYgY2xhc3M9ImNhcmQtaGVhZCI+PGgyPg==")}${icon(_lhD("cGhvbmU="))}${_lhD("IERhbmggYuG6oSDEkcaw4budbmcgZMOieSBuw7NuZzwvaDI+PGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzPSJidG4gZ2hvc3Qgc20iIGlkPSJhZGRIIj4=")}${icon(_lhD("cGx1cw=="))}${_lhD("IFRow6ptIHPhu5E8L2J1dHRvbj48L2Rpdj48ZGl2IGNsYXNzPSJjYXJkLWJvZHkgc3RhY2siIGlkPSJobCI+")}${s.hotlines.map(hotRow).join('')}${_lhD("PC9kaXY+PC9zZWN0aW9uPgogICAgICA8ZGl2IGNsYXNzPSJyb3cgYmV0d2VlbiI+PGRpdiBjbGFzcz0icm93Ij4=")}${isAdmin() ? `${_lhD("PGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzPSJidG4gZGFuZ2VyIHNvZnQiIGlkPSJyZXNldCI+")}${icon(_lhD("cmVmcmVzaA=="))}${_lhD("IEtow7RpIHBo4bulYyBk4buvIGxp4buHdSBt4bqrdTwvYnV0dG9uPg==")}` : ''}${_lhD("PC9kaXY+PGJ1dHRvbiBjbGFzcz0iYnRuIGxnIiBpZD0ic2F2ZSIg")}${isAdmin() ? '' : _lhD("ZGlzYWJsZWQ=")}${_lhD("Pg==")}${icon(_lhD("Y2hlY2s="))}${_lhD("IEzGsHUgY+G6pXUgaMOsbmg8L2J1dHRvbj48L2Rpdj4KICAgIDwvZm9ybT4=")}`;
+${fieldHtml({ name: _lhD("bWFycXVlZQ=="), label: _lhD("Qmnhu4N1IG5n4buvIHRow7RuZyBiw6FvIGNo4bqheSAobeG7l2kgZMOybmcgbeG7mXQgdGjDtG5nIMSRaeG7h3Ap"), type: _lhD("dGV4dGFyZWE="), rows: 4, value: s.marquee.join(_lhD("Cg==")), full: true })}${_lhD("CiAgICAgICAgPC9kaXY+PC9zZWN0aW9uPgogICAgICAgIDxzZWN0aW9uIGNsYXNzPSJjYXJkIj48ZGl2IGNsYXNzPSJjYXJkLWhlYWQiPjxoMj4=")}${icon(_lhD("c2xpZGVycw=="))}${_lhD("IE1vZHVsZSB0csOqbiBD4buVbmcgSOG7jWMgU2luaDwvaDI+PC9kaXY+PGRpdiBjbGFzcz0iY2FyZC1ib2R5IHN0YWNrIiBzdHlsZT0iZ2FwOjEwcHgiPg==")}${Object.entries(modules).map(([k, l]) => `${_lhD("PGxhYmVsIGNsYXNzPSJzd2l0Y2ggcm93IGJldHdlZW4iIHN0eWxlPSJ3aWR0aDoxMDAlIj48c3BhbiBjbGFzcz0ic21hbGwiPg==")}${esc(l)}${_lhD("PC9zcGFuPjxzcGFuIGNsYXNzPSJyb3cgbm93cmFwIj48aW5wdXQgdHlwZT0iY2hlY2tib3giIG5hbWU9Im1vZF8=")}${k}${_lhD("IiA=")}${s.modules[k] !== false ? _lhD("Y2hlY2tlZA==") : ''}${_lhD("PjxzcGFuIGNsYXNzPSJ0cmFjayI+PC9zcGFuPjwvc3Bhbj48L2xhYmVsPg==")}`).join('')}${_lhD("PC9kaXY+PC9zZWN0aW9uPgogICAgICA8L2Rpdj4KICAgICAgPHNlY3Rpb24gY2xhc3M9ImNhcmQiPjxkaXYgY2xhc3M9ImNhcmQtaGVhZCI+PGgyPg==")}${icon(_lhD("cGhvbmU="))}${_lhD("IERhbmggYuG6oSDEkcaw4budbmcgZMOieSBuw7NuZzwvaDI+PGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzPSJidG4gZ2hvc3Qgc20iIGlkPSJhZGRIIj4=")}${icon(_lhD("cGx1cw=="))}${_lhD("IFRow6ptIHPhu5E8L2J1dHRvbj48L2Rpdj48ZGl2IGNsYXNzPSJjYXJkLWJvZHkgc3RhY2siIGlkPSJobCI+")}${s.hotlines.map(hotRow).join('')}${_lhD("PC9kaXY+PC9zZWN0aW9uPgogICAgICA8ZGl2IGNsYXNzPSJyb3cgYmV0d2VlbiI+PGRpdiBjbGFzcz0icm93IiBzdHlsZT0iZ2FwOjhweCI+PGEgY2xhc3M9ImJ0biBzb2Z0IiBocmVmPSIjYmFja3VwcyI+")}${icon(_lhD("ZG93bmxvYWQ="))}${_lhD("IFF14bqjbiBsw70gU2FvIGzGsHUgJiBLaMO0aSBwaOG7pWMgdOG7sSDEkeG7mW5nPC9hPg==")}${isAdmin() ? `${_lhD("PGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzPSJidG4gZGFuZ2VyIHNvZnQiIGlkPSJyZXNldCI+")}${icon(_lhD("cmVmcmVzaA=="))}${_lhD("IEtow7RpIHBo4bulYyBk4buvIGxp4buHdSBt4bqrdTwvYnV0dG9uPg==")}` : ''}${_lhD("PC9kaXY+PGJ1dHRvbiBjbGFzcz0iYnRuIGxnIiBpZD0ic2F2ZSIg")}${isAdmin() ? '' : _lhD("ZGlzYWJsZWQ=")}${_lhD("Pg==")}${icon(_lhD("Y2hlY2s="))}${_lhD("IEzGsHUgY+G6pXUgaMOsbmg8L2J1dHRvbj48L2Rpdj4KICAgIDwvZm9ybT4=")}`;
 $$(_lhD("W2RhdGEtaW1hZ2Vd"), view).forEach(inp => inp.onchange = async () => { const f = inp.files[0]; if (!f) return; const d = await compressImage(f, 512, .9); const k = inp.dataset.image; $(`${_lhD("I2Zf")}${k}`).value = d; $(`${_lhD("I2Zf")}${k}${_lhD("X3B2")}`).innerHTML = `${_lhD("PGltZyBzcmM9Ig==")}${d}${_lhD("IiBhbHQ9IiI+")}`; const cb = $(`${_lhD("W2RhdGEtY2xyLWltYWdlPSI=")}${k}${_lhD("Il0=")}`, view); if (cb) cb.hidden = false; });
 $$(_lhD("W2RhdGEtY2xyLWltYWdlXQ=="), view).forEach(btn => btn.onclick = () => { const k = btn.dataset.clrImage; $(`${_lhD("I2Zf")}${k}`, view).value = ''; $(`${_lhD("I2Zf")}${k}${_lhD("X3B2")}`, view).innerHTML = ''; const fi = $(`${_lhD("W2RhdGEtaW1hZ2U9Ig==")}${k}${_lhD("Il0=")}`, view); if (fi) fi.value = ''; btn.hidden = true; });
 $(_lhD("I2FkZEg=")).onclick = () => { $(_lhD("I2hs")).insertAdjacentHTML(_lhD("YmVmb3JlZW5k"), hotRow({ name: '', number: '', note: '' })); bindHot(); };
@@ -875,6 +876,115 @@ e.preventDefault(); const f = formData(e.target);
 const hotlines = $$(_lhD("I2hsIC5yb3c=")).map(r => ({ name: $(_lhD("W2RhdGEtaD0ibmFtZSJd"), r).value, number: $(_lhD("W2RhdGEtaD0ibnVtYmVyIl0="), r).value, note: $(_lhD("W2RhdGEtaD0ibm90ZSJd"), r).value })).filter(h => h.name && h.number);
 withBusy($(_lhD("I3NhdmU=")), async () => { try { const r = await api.put(_lhD("YXBpL2FkbWluL3NldHRpbmdz"), { schoolName: f.schoolName, shortName: f.shortName, slogan: f.slogan, location: f.location, schoolYear: f.schoolYear, semester: f.semester, apiPin: f.apiPin || _lhD("MTIzNDU2"), contactPhone: f.contactPhone, contactEmail: f.contactEmail, contactAddress: f.contactAddress, facebookUrl: f.facebookUrl, linkedinUrl: f.linkedinUrl, zaloUrl: f.zaloUrl, creatorName: f.creatorName, siteIntro: f.siteIntro, logo: f.logo === '' ? '' : (f.logo.startsWith(_lhD("ZGF0YTo=")) ? f.logo : undefined), marquee: f.marquee.split(_lhD("Cg==")), modules: Object.fromEntries(Object.keys(modules).map(k => [k, f[_lhD("bW9kXw==") + k]])), hotlines }); S.settings = { ...S.settings, ...r.settings }; toast(_lhD("xJDDoyBsxrB1IGPhuqV1IGjDrG5oLiBD4buVbmcgSOG7jWMgU2luaCBj4bqtcCBuaOG6rXQgbmdheS4="), _lhD("b2s=")); } catch (er) { showError(er); } });
 };
+},
+async backups(view) {
+const TYPE_BADGE = {
+daily: [_lhD("U2FvIGzGsHUgaMOgbmcgbmfDoHk="), _lhD("aW5mbw==")],
+auto: [_lhD("VOG7sSDEkeG7mW5nICgxNSBwaMO6dCk="), _lhD("b2s=")],
+manual: [_lhD("U2FvIGzGsHUgdGjhu6cgY8O0bmc="), _lhD("dmlvbGV0")],
+'pre-restore': [_lhD("VHLGsOG7m2Mga2hpIGtow7RpIHBo4bulYw=="), _lhD("d2Fybg==")],
+};
+const draw = async () => {
+const r = await api.get(_lhD("YXBpL2FkbWluL2JhY2t1cHM=")).catch(() => ({ items: [] }));
+const items = r.items || [];
+const latest = items[0] || null;
+view.innerHTML = head(
+_lhD("U2FvIGzGsHUgJiBraMO0aSBwaOG7pWMgZOG7ryBsaeG7h3UgdOG7sSDEkeG7mW5n"),
+_lhD("SOG7hyB0aOG7kW5nIHThu7EgxJHhu5luZyBzYW8gbMawdSDEkeG7i25oIGvhu7MgbeG7l2kgMTUgcGjDunQga2hpIGPDsyB0aGF5IMSR4buVaSwgdOG6oW8gYuG6o24gc2FvIGzGsHUgaMOgbmcgbmfDoHkgdsOgIHThu7EgcGjhu6VjIGjhu5NpIHThu6ljIHRo4budaSBraGkgY8OzIHPhu7EgY+G7kS4="),
+`${_lhD("PGlucHV0IHR5cGU9ImZpbGUiIGlkPSJia0ltcG9ydElucCIgYWNjZXB0PSIuanNvbixhcHBsaWNhdGlvbi9qc29uIiBoaWRkZW4+")}` +
+`${isAdmin() ? `${_lhD("PGJ1dHRvbiBjbGFzcz0iYnRuIGdob3N0IiBpZD0iYmtJbXBvcnRCdG4iPg==")}${icon(_lhD("dXBsb2Fk"))}${_lhD("IEtow7RpIHBo4bulYyB04burIHThu4dwICguanNvbik8L2J1dHRvbj4=")}` : ''}` +
+`${_lhD("PGJ1dHRvbiBjbGFzcz0iYnRuIHNvZnQiIGlkPSJia0RsTGF0ZXN0Ij4=")}${icon(_lhD("ZG93bmxvYWQ="))}${_lhD("IFThuqNpIGLhuqNuIHNhbyBsxrB1IHbhu4EgbcOheTwvYnV0dG9uPg==")}` +
+`${isAdmin() ? `${_lhD("PGJ1dHRvbiBjbGFzcz0iYnRuIiBpZD0iYmtDcmVhdGVCdG4iPg==")}${icon(_lhD("cGx1cw=="))}${_lhD("IFNhbyBsxrB1IG5nYXk8L2J1dHRvbj4=")}` : ''}`
+) + `${_lhD("CiAgICAgIDxkaXYgY2xhc3M9ImdyaWQgZzMiPgogICAgICAgIDxkaXYgY2xhc3M9ImNhcmQgcGFkIHN0YWNrIiBzdHlsZT0iZ2FwOjZweDtiYWNrZ3JvdW5kOmxpbmVhci1ncmFkaWVudCgxMzVkZWcsdmFyKC0tb2stc29mdCksdmFyKC0tc3VyZmFjZSkpO2JvcmRlci1jb2xvcjp2YXIoLS1saW5lKSI+CiAgICAgICAgICA8ZGl2IGNsYXNzPSJyb3cgYmV0d2VlbiI+PHNwYW4gY2xhc3M9InhzIG11dGVkIj5UUuG6oE5HIFRIw4FJIEjhu4YgVEjhu5BORzwvc3Bhbj4=")}${badge(_lhD("xJBhbmcgaG/huqF0IMSR4buZbmcgMjQvNw=="), _lhD("b2s="))}${_lhD("PC9kaXY+CiAgICAgICAgICA8YiBzdHlsZT0iZm9udC1zaXplOjEuMXJlbTtmb250LWZhbWlseTp2YXIoLS1mb250LWRpc3BsYXkpIj5U4buxIMSR4buZbmcgQmFja3VwIMSRYSB04bqnbmc8L2I+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ieHMgaW5rMiI+R+G7k20gYuG6o24gZOG7sSBwaMOybmcgdOG7qWMgdGjhu51pICguYmFrKSwgYuG6o24gxJHhu4tuaCBr4buzIDE1IHBow7p0ICYgYuG6o24gaMOgbmcgbmfDoHkgKGdp4buvIDMwIGLhuqNuIGfhuqduIG5o4bqldCkuPC9zcGFuPgogICAgICAgIDwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9ImNhcmQgcGFkIHN0YWNrIiBzdHlsZT0iZ2FwOjZweCI+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ieHMgbXV0ZWQiPkLhuqJOIFNBTyBMxq9VIFRSw4pOIE3DgVkgQ0jhu6Y8L3NwYW4+CiAgICAgICAgICA8YiBzdHlsZT0iZm9udC1zaXplOjEuMzVyZW07Zm9udC1mYW1pbHk6dmFyKC0tZm9udC1kaXNwbGF5KSI+")}${items.length}${_lhD("IDxzcGFuIGNsYXNzPSJzbWFsbCBtdXRlZCIgc3R5bGU9ImZvbnQtd2VpZ2h0OjUwMCI+LyAzMCBi4bqjbjwvc3Bhbj48L2I+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ieHMgaW5rMiI+VOG7sSDEkeG7mW5nIGThu41uIGPDoWMgYuG6o24gY8WpIG5o4bqldCBraGkgdsaw4bujdCBxdcOhIDMwIGLhuqNuIMSR4buDIHRp4bq/dCBraeG7h20gZHVuZyBsxrDhu6NuZy48L3NwYW4+CiAgICAgICAgPC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iY2FyZCBwYWQgc3RhY2siIHN0eWxlPSJnYXA6NnB4Ij4KICAgICAgICAgIDxzcGFuIGNsYXNzPSJ4cyBtdXRlZCI+TOG6pk4gU0FPIEzGr1UgR+G6pk4gTkjhuqRUPC9zcGFuPgogICAgICAgICAgPGIgc3R5bGU9ImZvbnQtc2l6ZToxLjA1cmVtO2ZvbnQtZmFtaWx5OnZhcigtLWZvbnQtZGlzcGxheSkiPg==")}${latest ? fmtDateTime(latest.at) : _lhD("VuG7q2Ega2jhu59pIHThuqFv")}${_lhD("PC9iPgogICAgICAgICAgPHNwYW4gY2xhc3M9InhzIGluazIiPg==")}${latest ? `${ago(latest.at)}${_lhD("IMK3IER1bmcgbMaw4bujbmcg")}${fmtSize(latest.size)}` : _lhD("SOG7hyB0aOG7kW5nIHThu7EgZ2hpIGtoaSBjw7MgdGhheSDEkeG7lWk=")}${_lhD("PC9zcGFuPgogICAgICAgIDwvZGl2PgogICAgICA8L2Rpdj4KCiAgICAgIDxzZWN0aW9uIGNsYXNzPSJjYXJkIj4KICAgICAgICA8ZGl2IGNsYXNzPSJjYXJkLWhlYWQiPgogICAgICAgICAgPGgyPg==")}${icon(_lhD("aGlzdG9yeQ=="))}${_lhD("IERhbmggc8OhY2ggY8OhYyDEkWnhu4NtIGtow7RpIHBo4bulYyB0csOqbiBtw6F5IGNo4bunPC9oMj4KICAgICAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBnaG9zdCBzbSIgaWQ9ImJrUmVmcmVzaCI+")}${icon(_lhD("cmVmcmVzaA=="))}${_lhD("IEzDoG0gbeG7m2k8L2J1dHRvbj4KICAgICAgICA8L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJjYXJkLWJvZHkiPgogICAgICAgICAg")}${items.length ? `${_lhD("PGRpdiBjbGFzcz0idGFibGUtd3JhcCI+PHRhYmxlIGNsYXNzPSJ0YmwiPgogICAgICAgICAgICA8dGhlYWQ+PHRyPjx0aD5UaOG7nWkgZ2lhbiBzYW8gbMawdTwvdGg+PHRoPkxv4bqhaSBi4bqjbiBzYW88L3RoPjx0aD5UaOG7kW5nIGvDqiBk4buvIGxp4buHdTwvdGg+PHRoPkR1bmcgbMaw4bujbmc8L3RoPjx0aCBzdHlsZT0idGV4dC1hbGlnbjpyaWdodCI+VGhhbyB0w6FjPC90aD48L3RyPjwvdGhlYWQ+CiAgICAgICAgICAgIDx0Ym9keT4=")}${items.map(b => {
+const [lbl, tone] = TYPE_BADGE[b.type] || [_lhD("VOG7sSDEkeG7mW5n"), _lhD("b2s=")];
+const c = b.counts || {};
+return `${_lhD("PHRyPgogICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJzbWFsbCI+PGI+")}${fmtDateTime(b.at)}${_lhD("PC9iPjxkaXYgY2xhc3M9InhzIG11dGVkIG1vbm8iPg==")}${esc(b.id)}${_lhD("PC9kaXY+PC90ZD4KICAgICAgICAgICAgICAgIDx0ZD4=")}${badge(lbl, tone)}${_lhD("PC90ZD4KICAgICAgICAgICAgICAgIDx0ZCBjbGFzcz0ic21hbGwgaW5rMiI+")}${c.users || 0}${_lhD("IHTDoGkga2hv4bqjbiDCtyA=")}${c.reports || 0}${_lhD("IHThu5EgZ2nDoWMgwrcg")}${c.counseling || 0}${_lhD("IHTGsCB24bqlbiDCtyA=")}${c.messages || 0}${_lhD("IHRpbiBuaOG6r248L3RkPgogICAgICAgICAgICAgICAgPHRkIGNsYXNzPSJzbWFsbCBudW0iPg==")}${fmtSize(b.size || 0)}${_lhD("PC90ZD4KICAgICAgICAgICAgICAgIDx0ZCBzdHlsZT0idGV4dC1hbGlnbjpyaWdodCI+PGRpdiBjbGFzcz0icm93IG5vd3JhcCIgc3R5bGU9Imp1c3RpZnktY29udGVudDpmbGV4LWVuZDtnYXA6NnB4Ij4KICAgICAgICAgICAgICAgICAgPGJ1dHRvbiBjbGFzcz0iYnRuIGdob3N0IHNtIiBkYXRhLWJrLWRsPSI=")}${esc(b.id)}${_lhD("IiB0aXRsZT0iVOG6o2kgdOG7h3AgSlNPTiB24buBIG3DoXkiPg==")}${icon(_lhD("ZG93bmxvYWQ="))}${_lhD("IFThuqNpIHbhu4E8L2J1dHRvbj4KICAgICAgICAgICAgICAgICAg")}${isAdmin() ? `${_lhD("PGJ1dHRvbiBjbGFzcz0iYnRuIHNvZnQgc20iIGRhdGEtYmstcmVzPSI=")}${esc(b.id)}${_lhD("IiB0aXRsZT0iS2jDtGkgcGjhu6VjIGThu68gbGnhu4d1IHbhu4EgdGjhu51pIMSRaeG7g20gbsOgeSI+")}${icon(_lhD("cmVmcmVzaA=="))}${_lhD("IEtow7RpIHBo4bulYzwvYnV0dG9uPgogICAgICAgICAgICAgICAgICA8YnV0dG9uIGNsYXNzPSJidG4gaWNvbiBnaG9zdCBzbSIgZGF0YS1iay1kZWw9Ig==")}${esc(b.id)}${_lhD("IiBzdHlsZT0iY29sb3I6dmFyKC0tYmFkKSIgdGl0bGU9IljDs2EgYuG6o24gc2FvIGzGsHUiPg==")}${icon(_lhD("dHJhc2g="))}${_lhD("PC9idXR0b24+")}` : ''}${_lhD("CiAgICAgICAgICAgICAgICA8L2Rpdj48L3RkPgogICAgICAgICAgICAgIDwvdHI+")}`;
+}).join('')}${_lhD("PC90Ym9keT4KICAgICAgICAgIDwvdGFibGU+PC9kaXY+")}` : empty(_lhD("Q2jGsGEgY8OzIGLhuqNuIHNhbyBsxrB1IG7DoG8="), _lhD("QuG6pW0gbsO6dCDigJxTYW8gbMawdSBuZ2F54oCdIOG7nyBnw7NjIHRyw6puIMSR4buDIHThuqFvIMSRaeG7g20ga2jDtGkgcGjhu6VjIMSR4bqndSB0acOqbi4="))}${_lhD("CiAgICAgICAgPC9kaXY+CiAgICAgIDwvc2VjdGlvbj4=")}`;
+const downloadJson = async (id = '', btn = null) => {
+await withBusy(btn, async () => {
+try {
+const out = await api.get(`${_lhD("YXBpL2FkbWluL2JhY2t1cHMvZG93bmxvYWQ=")}${id ? `${_lhD("P2lkPQ==")}${encodeURIComponent(id)}` : ''}`);
+const blob = new Blob([JSON.stringify(out.backup, null, 2)], { type: _lhD("YXBwbGljYXRpb24vanNvbjtjaGFyc2V0PXV0Zi04") });
+const a = document.createElement(_lhD("YQ=="));
+a.href = URL.createObjectURL(blob);
+a.download = out.id || `${_lhD("bGVob2FuLWJhY2t1cC0=")}${new Date().toISOString().slice(0, 10)}${_lhD("Lmpzb24=")}`;
+document.body.appendChild(a); a.click(); a.remove();
+setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+toast(`${_lhD("xJDDoyB04bqjaSBi4bqjbiBzYW8gbMawdSA=")}${a.download}`, _lhD("b2s="));
+} catch (e) { showError(e); }
+});
+};
+$(_lhD("I2JrUmVmcmVzaA=="), view).onclick = () => draw();
+$(_lhD("I2JrRGxMYXRlc3Q="), view).onclick = (e) => downloadJson(latest?.id || '', e.currentTarget);
+if ($(_lhD("I2JrQ3JlYXRlQnRu"), view)) {
+$(_lhD("I2JrQ3JlYXRlQnRu"), view).onclick = (e) => withBusy(e.currentTarget, async () => {
+try {
+const res = await api.post(_lhD("YXBpL2FkbWluL2JhY2t1cHM="), {});
+toast(res.message || _lhD("xJDDoyB04bqhbyBi4bqjbiBzYW8gbMawdSBt4bubaS4="), _lhD("b2s="));
+draw();
+} catch (er) { showError(er); }
+});
+}
+if ($(_lhD("I2JrSW1wb3J0QnRu"), view)) {
+const inp = $(_lhD("I2JrSW1wb3J0SW5w"), view);
+$(_lhD("I2JrSW1wb3J0QnRu"), view).onclick = () => inp.click();
+inp.onchange = async () => {
+const f = inp.files?.[0];
+inp.value = '';
+if (!f) return;
+try {
+const text = await f.text();
+const parsed = JSON.parse(text);
+const backup = parsed?.backup?.users ? parsed.backup : parsed;
+if (!backup?.users || !Array.isArray(backup.users)) {
+return toast(_lhD("VOG7h3AgSlNPTiBraMO0bmcgxJHDum5nIGPhuqV1IHRyw7pjIHNhbyBsxrB1IGPhu6dhIGjhu4cgdGjhu5FuZy4="), _lhD("YmFk"));
+}
+if (!await confirmDialog({
+title: _lhD("S2jDtGkgcGjhu6VjIGThu68gbGnhu4d1IHThu6sgdOG7h3A="),
+message: `${_lhD("S2jDtGkgcGjhu6VjIGThu68gbGnhu4d1IHThu6sgdOG7h3AgPGI+")}${esc(f.name)}${_lhD("PC9iPiAo")}${backup.users.length}${_lhD("IHTDoGkga2hv4bqjbik/IEjhu4cgdGjhu5FuZyBz4bq9IHThu7EgxJHhu5luZyBjaOG7pXAgbOG6oWkgbeG7mXQgYuG6o24gc2FvIGzGsHUgdHLhuqFuZyB0aMOhaSBoaeG7h24gdOG6oWkgdHLGsOG7m2Mga2hpIGtow7RpIHBo4bulYy4=")}`,
+ok: _lhD("S2jDtGkgcGjhu6VjIG5nYXk="),
+tone: _lhD("ZGFuZ2Vy"),
+})) return;
+await withBusy($(_lhD("I2JrSW1wb3J0QnRu"), view), async () => {
+const res = await api.post(_lhD("YXBpL2FkbWluL2JhY2t1cHMvcmVzdG9yZQ=="), { backup });
+toast(res.message || _lhD("xJDDoyBraMO0aSBwaOG7pWMgZOG7ryBsaeG7h3UgdGjDoG5oIGPDtG5nLg=="), _lhD("b2s="));
+refreshCounts();
+draw();
+});
+} catch (er) { showError(er); }
+};
+}
+$$(_lhD("W2RhdGEtYmstZGxd"), view).forEach(b => b.onclick = () => downloadJson(b.dataset.bkDl, b));
+$$(_lhD("W2RhdGEtYmstcmVzXQ=="), view).forEach(b => b.onclick = async () => {
+const id = b.dataset.bkRes;
+if (!await confirmDialog({
+title: _lhD("S2jDtGkgcGjhu6VjIGLhuqNuIHNhbyBsxrB1"),
+message: `${_lhD("S2jDtGkgcGjhu6VjIHRvw6BuIGLhu5kgZOG7ryBsaeG7h3UgaOG7hyB0aOG7kW5nIHbhu4EgYuG6o24gc2FvIGzGsHUgPGI+")}${esc(id)}${_lhD("PC9iPj8gSOG7hyB0aOG7kW5nIHPhur0gdOG7sSDEkeG7mW5nIGzGsHUgbOG6oWkgdHLhuqFuZyB0aMOhaSBoaeG7h24gdOG6oWkgdHLGsOG7m2Mga2hpIGtow7RpIHBo4bulYy4=")}`,
+ok: _lhD("S2jDtGkgcGjhu6Vj"),
+tone: _lhD("ZGFuZ2Vy"),
+})) return;
+await withBusy(b, async () => {
+try {
+const res = await api.post(_lhD("YXBpL2FkbWluL2JhY2t1cHMvcmVzdG9yZQ=="), { id });
+toast(res.message || _lhD("xJDDoyBraMO0aSBwaOG7pWMgZOG7ryBsaeG7h3UgdGjDoG5oIGPDtG5nLg=="), _lhD("b2s="));
+refreshCounts();
+draw();
+} catch (er) { showError(er); }
+});
+});
+$$(_lhD("W2RhdGEtYmstZGVsXQ=="), view).forEach(b => b.onclick = async () => {
+const id = b.dataset.bkDel;
+if (!await confirmDialog({ title: _lhD("WMOzYSBi4bqjbiBzYW8gbMawdQ=="), message: `${_lhD("WMOzYSBi4bqjbiBzYW8gbMawdSA8Yj4=")}${esc(id)}${_lhD("PC9iPiBraOG7j2kgbcOheSBjaOG7pz8=")}`, ok: _lhD("WMOzYQ=="), tone: _lhD("ZGFuZ2Vy") })) return;
+await withBusy(b, async () => {
+try {
+await api.del(`${_lhD("YXBpL2FkbWluL2JhY2t1cHMv")}${encodeURIComponent(id)}`);
+toast(_lhD("xJDDoyB4w7NhIGLhuqNuIHNhbyBsxrB1Lg=="), _lhD("b2s="));
+draw();
+} catch (er) { showError(er); }
+});
+});
+};
+await draw();
 },
 async logs(view) {
 const draw = async () => {

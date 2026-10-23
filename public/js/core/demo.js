@@ -314,8 +314,75 @@ function makeLlm(c = {}) {
 if (!c.provider || c.provider === _lhD("b2Zm")) return null;
 return createLlm({ AI_PROVIDER: c.provider === _lhD("Y3VzdG9t") ? _lhD("b3BlbmFp") : c.provider, AI_API_KEY: c.apiKey || '', AI_MODEL: c.model || '', AI_BASE_URL: c.baseUrl || '' });
 }
+const backupsClient = {
+async list() {
+if (remoteSync) {
+const j = await sendPkt({ action: _lhD("YmFja3VwLWxpc3Q="), token: getActiveToken() }).catch(() => null);
+return { items: j?.items || [] };
+}
+return { items: [] };
+},
+async create() {
+if (remoteSync) {
+const j = await sendPkt({ action: _lhD("YmFja3VwLWNyZWF0ZQ=="), token: getActiveToken() });
+if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || _lhD("S2jDtG5nIHRo4buDIHThuqFvIGLhuqNuIHNhbyBsxrB1Lg=="));
+return { created: j.created, items: j.items || [] };
+}
+return { created: `${_lhD("YmFja3VwLQ==")}${Date.now()}${_lhD("Lmpzb24=")}`, items: [] };
+},
+async remove(id) {
+if (remoteSync) {
+const j = await sendPkt({ action: _lhD("YmFja3VwLWRlbGV0ZQ=="), id, token: getActiveToken() });
+if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || _lhD("S2jDtG5nIHRo4buDIHjDs2EgYuG6o24gc2FvIGzGsHUu"));
+return { items: j.items || [] };
+}
+return { items: [] };
+},
+async download(id) {
+if (remoteSync) {
+const j = await sendPkt({ action: _lhD("YmFja3VwLWRvd25sb2Fk"), id, token: getActiveToken() });
+if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || _lhD("S2jDtG5nIHRo4buDIHThuqNpIGLhuqNuIHNhbyBsxrB1Lg=="));
+return { id: j.id, backup: j.backup };
+}
+return { id: id || `${_lhD("YmFja3VwLQ==")}${new Date().toISOString().slice(0, 10)}${_lhD("Lmpzb24=")}`, backup: db.data };
+},
+async restore(id) {
+if (remoteSync) {
+const j = await sendPkt({ action: _lhD("YmFja3VwLXJlc3RvcmU="), id, token: getActiveToken() });
+if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || _lhD("S2jDtG5nIHRo4buDIGtow7RpIHBo4bulYyBi4bqjbiBzYW8gbMawdS4="));
+if (j.mtime) remoteMtime = j.mtime;
+if (j.data?.users) {
+const prev = db.data;
+db.data = j.data;
+diffAndEmit(prev, j.data);
+deliver(_lhD("ZGF0YTpjaGFuZ2Vk"), {}, { all: true });
+}
+return { items: j.items || [] };
+}
+throw new HttpError(400, _lhD("Q2jhu4kgaOG7lyB0cuG7oyB0csOqbiBtw6F5IGNo4bunLg=="));
+},
+async importData(backup) {
+if (!backup?.users || !Array.isArray(backup.users)) throw new HttpError(400, _lhD("VOG7h3Agc2FvIGzGsHUga2jDtG5nIGjhu6NwIGzhu4cu"));
+if (remoteSync) {
+const j = await sendPkt({ action: _lhD("YmFja3VwLWltcG9ydA=="), backup, token: getActiveToken() });
+if (!j?.ok) throw new HttpError(j?.__status || 500, j?.error || _lhD("S2jDtG5nIHRo4buDIG5o4bqtcCBi4bqjbiBzYW8gbMawdS4="));
+if (j.mtime) remoteMtime = j.mtime;
+if (j.data?.users) {
+const prev = db.data;
+db.data = j.data;
+diffAndEmit(prev, j.data);
+deliver(_lhD("ZGF0YTpjaGFuZ2Vk"), {}, { all: true });
+}
+return { items: j.items || [] };
+}
+db.data = backup;
+await db.flush();
+deliver(_lhD("ZGF0YTpjaGFuZ2Vk"), {}, { all: true });
+return { items: [] };
+},
+};
 const api = buildApi();
-const ctx = { db, crypto: cryptoProvider, emit, mode: _lhD("ZGVtbw=="), llm: null, makeLlm,
+const ctx = { db, backups: backupsClient, crypto: cryptoProvider, emit, mode: _lhD("ZGVtbw=="), llm: null, makeLlm,
 reloadLlm() { const c = db.data?.aiConfig; this.llm = (c?.provider && c.provider !== _lhD("b2Zm") && c.apiKey) ? makeLlm(c) : null; return this.llm; },
 lanUrls: () => (typeof location !== _lhD("dW5kZWZpbmVk") ? [location.origin] : []),
 reseed: () => db.reseed(),

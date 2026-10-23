@@ -4,7 +4,7 @@
 import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js';
 import { icon, drumArt } from './core/icons.js';
 import { $, $$, esc, toast, modal, confirmDialog, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, donut, gauge, md, store,
-  fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
+  fmtDate, fmtTime, fmtDateTime, fmtSize, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
 
 const aiOfflineNote = (ai) => getMode() === 'demo' && !ai?.enabled && isNativeApp() ? `<div class="card soft small row nowrap" style="padding:10px 14px;gap:8px">${icon('info')}<span>App đang ở <b>bản trải nghiệm</b> nên dùng chế độ cơ bản. Đăng xuất → <b>Máy chủ trường</b> → nhập địa chỉ máy chủ để dùng AI của nhà trường.</span></div>` : '';
 const aiPill = (ai) => ai?.enabled ? `<span class="badge violet" title="${esc(ai.label || '')}">${icon('sparkles')} AI thật đang bật</span>` : '<span class="badge" title="Thêm khóa API trong .env để bật AI">Bộ luật · chưa bật AI</span>';
@@ -61,6 +61,7 @@ const ADMIN_NAV = [
     { id: 'content', label: 'Cẩm nang & bản tin', icon: 'bookOpen' },
     { id: 'broadcast', label: 'Phát thông báo', icon: 'megaphone' },
     { id: 'settings', label: 'Giao diện & cấu hình', icon: 'palette' },
+    { id: 'backups', label: 'Sao lưu & khôi phục', icon: 'download' },
     { id: 'logs', label: 'Nhật ký & góp ý', icon: 'history' },
     { id: 'app-guide', label: 'Hướng dẫn tải App', icon: 'smartphone' },
     { id: 'about', label: 'Giới thiệu trang web', icon: 'info' },
@@ -1148,7 +1149,7 @@ const PAGES = {
         <section class="card"><div class="card-head"><h2>${icon('sliders')} Module trên Cổng Học Sinh</h2></div><div class="card-body stack" style="gap:10px">${Object.entries(modules).map(([k, l]) => `<label class="switch row between" style="width:100%"><span class="small">${esc(l)}</span><span class="row nowrap"><input type="checkbox" name="mod_${k}" ${s.modules[k] !== false ? 'checked' : ''}><span class="track"></span></span></label>`).join('')}</div></section>
       </div>
       <section class="card"><div class="card-head"><h2>${icon('phone')} Danh bạ đường dây nóng</h2><button type="button" class="btn ghost sm" id="addH">${icon('plus')} Thêm số</button></div><div class="card-body stack" id="hl">${s.hotlines.map(hotRow).join('')}</div></section>
-      <div class="row between"><div class="row">${isAdmin() ? `<button type="button" class="btn danger soft" id="reset">${icon('refresh')} Khôi phục dữ liệu mẫu</button>` : ''}</div><button class="btn lg" id="save" ${isAdmin() ? '' : 'disabled'}>${icon('check')} Lưu cấu hình</button></div>
+      <div class="row between"><div class="row" style="gap:8px"><a class="btn soft" href="#backups">${icon('download')} Quản lý Sao lưu & Khôi phục tự động</a>${isAdmin() ? `<button type="button" class="btn danger soft" id="reset">${icon('refresh')} Khôi phục dữ liệu mẫu</button>` : ''}</div><button class="btn lg" id="save" ${isAdmin() ? '' : 'disabled'}>${icon('check')} Lưu cấu hình</button></div>
     </form>`;
     $$('[data-image]', view).forEach(inp => inp.onchange = async () => { const f = inp.files[0]; if (!f) return; const d = await compressImage(f, 512, .9); const k = inp.dataset.image; $(`#f_${k}`).value = d; $(`#f_${k}_pv`).innerHTML = `<img src="${d}" alt="">`; const cb = $(`[data-clr-image="${k}"]`, view); if (cb) cb.hidden = false; });
     $$('[data-clr-image]', view).forEach(btn => btn.onclick = () => { const k = btn.dataset.clrImage; $(`#f_${k}`, view).value = ''; $(`#f_${k}_pv`, view).innerHTML = ''; const fi = $(`[data-image="${k}"]`, view); if (fi) fi.value = ''; btn.hidden = true; });
@@ -1161,6 +1162,159 @@ const PAGES = {
       const hotlines = $$('#hl .row').map(r => ({ name: $('[data-h="name"]', r).value, number: $('[data-h="number"]', r).value, note: $('[data-h="note"]', r).value })).filter(h => h.name && h.number);
       withBusy($('#save'), async () => { try { const r = await api.put('api/admin/settings', { schoolName: f.schoolName, shortName: f.shortName, slogan: f.slogan, location: f.location, schoolYear: f.schoolYear, semester: f.semester, apiPin: f.apiPin || '123456', contactPhone: f.contactPhone, contactEmail: f.contactEmail, contactAddress: f.contactAddress, facebookUrl: f.facebookUrl, linkedinUrl: f.linkedinUrl, zaloUrl: f.zaloUrl, creatorName: f.creatorName, siteIntro: f.siteIntro, logo: f.logo === '' ? '' : (f.logo.startsWith('data:') ? f.logo : undefined), marquee: f.marquee.split('\n'), modules: Object.fromEntries(Object.keys(modules).map(k => [k, f['mod_' + k]])), hotlines }); S.settings = { ...S.settings, ...r.settings }; toast('Đã lưu cấu hình. Cổng Học Sinh cập nhật ngay.', 'ok'); } catch (er) { showError(er); } });
     };
+  },
+
+  // ---------------------------------------------------------------- Sao lưu & khôi phục tự động
+  async backups(view) {
+    const TYPE_BADGE = {
+      daily: ['Sao lưu hàng ngày', 'info'],
+      auto: ['Tự động (15 phút)', 'ok'],
+      manual: ['Sao lưu thủ công', 'violet'],
+      'pre-restore': ['Trước khi khôi phục', 'warn'],
+    };
+    const draw = async () => {
+      const r = await api.get('api/admin/backups').catch(() => ({ items: [] }));
+      const items = r.items || [];
+      const latest = items[0] || null;
+      view.innerHTML = head(
+        'Sao lưu & khôi phục dữ liệu tự động',
+        'Hệ thống tự động sao lưu định kỳ mỗi 15 phút khi có thay đổi, tạo bản sao lưu hàng ngày và tự phục hồi tức thời khi có sự cố.',
+        `<input type="file" id="bkImportInp" accept=".json,application/json" hidden>` +
+        `${isAdmin() ? `<button class="btn ghost" id="bkImportBtn">${icon('upload')} Khôi phục từ tệp (.json)</button>` : ''}` +
+        `<button class="btn soft" id="bkDlLatest">${icon('download')} Tải bản sao lưu về máy</button>` +
+        `${isAdmin() ? `<button class="btn" id="bkCreateBtn">${icon('plus')} Sao lưu ngay</button>` : ''}`
+      ) + `
+      <div class="grid g3">
+        <div class="card pad stack" style="gap:6px;background:linear-gradient(135deg,var(--ok-soft),var(--surface));border-color:var(--line)">
+          <div class="row between"><span class="xs muted">TRẠNG THÁI HỆ THỐNG</span>${badge('Đang hoạt động 24/7', 'ok')}</div>
+          <b style="font-size:1.1rem;font-family:var(--font-display)">Tự động Backup đa tầng</b>
+          <span class="xs ink2">Gồm bản dự phòng tức thời (.bak), bản định kỳ 15 phút & bản hàng ngày (giữ 30 bản gần nhất).</span>
+        </div>
+        <div class="card pad stack" style="gap:6px">
+          <span class="xs muted">BẢN SAO LƯU TRÊN MÁY CHỦ</span>
+          <b style="font-size:1.35rem;font-family:var(--font-display)">${items.length} <span class="small muted" style="font-weight:500">/ 30 bản</span></b>
+          <span class="xs ink2">Tự động dọn các bản cũ nhất khi vượt quá 30 bản để tiết kiệm dung lượng.</span>
+        </div>
+        <div class="card pad stack" style="gap:6px">
+          <span class="xs muted">LẦN SAO LƯU GẦN NHẤT</span>
+          <b style="font-size:1.05rem;font-family:var(--font-display)">${latest ? fmtDateTime(latest.at) : 'Vừa khởi tạo'}</b>
+          <span class="xs ink2">${latest ? `${ago(latest.at)} · Dung lượng ${fmtSize(latest.size)}` : 'Hệ thống tự ghi khi có thay đổi'}</span>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>${icon('history')} Danh sách các điểm khôi phục trên máy chủ</h2>
+          <button class="btn ghost sm" id="bkRefresh">${icon('refresh')} Làm mới</button>
+        </div>
+        <div class="card-body">
+          ${items.length ? `<div class="table-wrap"><table class="tbl">
+            <thead><tr><th>Thời gian sao lưu</th><th>Loại bản sao</th><th>Thống kê dữ liệu</th><th>Dung lượng</th><th style="text-align:right">Thao tác</th></tr></thead>
+            <tbody>${items.map(b => {
+              const [lbl, tone] = TYPE_BADGE[b.type] || ['Tự động', 'ok'];
+              const c = b.counts || {};
+              return `<tr>
+                <td class="small"><b>${fmtDateTime(b.at)}</b><div class="xs muted mono">${esc(b.id)}</div></td>
+                <td>${badge(lbl, tone)}</td>
+                <td class="small ink2">${c.users || 0} tài khoản · ${c.reports || 0} tố giác · ${c.counseling || 0} tư vấn · ${c.messages || 0} tin nhắn</td>
+                <td class="small num">${fmtSize(b.size || 0)}</td>
+                <td style="text-align:right"><div class="row nowrap" style="justify-content:flex-end;gap:6px">
+                  <button class="btn ghost sm" data-bk-dl="${esc(b.id)}" title="Tải tệp JSON về máy">${icon('download')} Tải về</button>
+                  ${isAdmin() ? `<button class="btn soft sm" data-bk-res="${esc(b.id)}" title="Khôi phục dữ liệu về thời điểm này">${icon('refresh')} Khôi phục</button>
+                  <button class="btn icon ghost sm" data-bk-del="${esc(b.id)}" style="color:var(--bad)" title="Xóa bản sao lưu">${icon('trash')}</button>` : ''}
+                </div></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table></div>` : empty('Chưa có bản sao lưu nào', 'Bấm nút “Sao lưu ngay” ở góc trên để tạo điểm khôi phục đầu tiên.')}
+        </div>
+      </section>`;
+
+      const downloadJson = async (id = '', btn = null) => {
+        await withBusy(btn, async () => {
+          try {
+            const out = await api.get(`api/admin/backups/download${id ? `?id=${encodeURIComponent(id)}` : ''}`);
+            const blob = new Blob([JSON.stringify(out.backup, null, 2)], { type: 'application/json;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = out.id || `lehoan-backup-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+            toast(`Đã tải bản sao lưu ${a.download}`, 'ok');
+          } catch (e) { showError(e); }
+        });
+      };
+
+      $('#bkRefresh', view).onclick = () => draw();
+      $('#bkDlLatest', view).onclick = (e) => downloadJson(latest?.id || '', e.currentTarget);
+      if ($('#bkCreateBtn', view)) {
+        $('#bkCreateBtn', view).onclick = (e) => withBusy(e.currentTarget, async () => {
+          try {
+            const res = await api.post('api/admin/backups', {});
+            toast(res.message || 'Đã tạo bản sao lưu mới.', 'ok');
+            draw();
+          } catch (er) { showError(er); }
+        });
+      }
+      if ($('#bkImportBtn', view)) {
+        const inp = $('#bkImportInp', view);
+        $('#bkImportBtn', view).onclick = () => inp.click();
+        inp.onchange = async () => {
+          const f = inp.files?.[0];
+          inp.value = '';
+          if (!f) return;
+          try {
+            const text = await f.text();
+            const parsed = JSON.parse(text);
+            const backup = parsed?.backup?.users ? parsed.backup : parsed;
+            if (!backup?.users || !Array.isArray(backup.users)) {
+              return toast('Tệp JSON không đúng cấu trúc sao lưu của hệ thống.', 'bad');
+            }
+            if (!await confirmDialog({
+              title: 'Khôi phục dữ liệu từ tệp',
+              message: `Khôi phục dữ liệu từ tệp <b>${esc(f.name)}</b> (${backup.users.length} tài khoản)? Hệ thống sẽ tự động chụp lại một bản sao lưu trạng thái hiện tại trước khi khôi phục.`,
+              ok: 'Khôi phục ngay',
+              tone: 'danger',
+            })) return;
+            await withBusy($('#bkImportBtn', view), async () => {
+              const res = await api.post('api/admin/backups/restore', { backup });
+              toast(res.message || 'Đã khôi phục dữ liệu thành công.', 'ok');
+              refreshCounts();
+              draw();
+            });
+          } catch (er) { showError(er); }
+        };
+      }
+      $$('[data-bk-dl]', view).forEach(b => b.onclick = () => downloadJson(b.dataset.bkDl, b));
+      $$('[data-bk-res]', view).forEach(b => b.onclick = async () => {
+        const id = b.dataset.bkRes;
+        if (!await confirmDialog({
+          title: 'Khôi phục bản sao lưu',
+          message: `Khôi phục toàn bộ dữ liệu hệ thống về bản sao lưu <b>${esc(id)}</b>? Hệ thống sẽ tự động lưu lại trạng thái hiện tại trước khi khôi phục.`,
+          ok: 'Khôi phục',
+          tone: 'danger',
+        })) return;
+        await withBusy(b, async () => {
+          try {
+            const res = await api.post('api/admin/backups/restore', { id });
+            toast(res.message || 'Đã khôi phục dữ liệu thành công.', 'ok');
+            refreshCounts();
+            draw();
+          } catch (er) { showError(er); }
+        });
+      });
+      $$('[data-bk-del]', view).forEach(b => b.onclick = async () => {
+        const id = b.dataset.bkDel;
+        if (!await confirmDialog({ title: 'Xóa bản sao lưu', message: `Xóa bản sao lưu <b>${esc(id)}</b> khỏi máy chủ?`, ok: 'Xóa', tone: 'danger' })) return;
+        await withBusy(b, async () => {
+          try {
+            await api.del(`api/admin/backups/${encodeURIComponent(id)}`);
+            toast('Đã xóa bản sao lưu.', 'ok');
+            draw();
+          } catch (er) { showError(er); }
+        });
+      });
+    };
+    await draw();
   },
 
   // ---------------------------------------------------------------- Nhật ký & góp ý

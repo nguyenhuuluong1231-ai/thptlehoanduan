@@ -40,6 +40,13 @@ $uploadDir = $dataDir . '/uploads';
 if (!is_dir($uploadDir)) {
   @mkdir($uploadDir, 0755, true);
 }
+$backupDir = $dataDir . '/backups';
+if (!is_dir($backupDir)) {
+  @mkdir($backupDir, 0755, true);
+}
+if (!is_file($backupDir . '/.htaccess')) {
+  @file_put_contents($backupDir . '/.htaccess', "Order allow,deny\nDeny from all\n");
+}
 
 $dbFile = $dataDir . '/db-live.json';
 $revFile = $dataDir . '/db.rev';
@@ -134,14 +141,91 @@ function _lhGetDbRev(string $dbFile, string $revFile): int {
   return max($rev, $fm);
 }
 
-function _lhLoadRawDb(string $dbFile): ?array {
-  if (!is_file($dbFile)) return null;
-  $raw = (string)@file_get_contents($dbFile);
-  $data = json_decode($raw, true);
-  return (is_array($data) && isset($data['users']) && is_array($data['users'])) ? $data : null;
+function _lhLoadRawDb(string $dbFile, string $backupDir = ''): ?array {
+  if (is_file($dbFile)) {
+    $raw = (string)@file_get_contents($dbFile);
+    $data = json_decode($raw, true);
+    if (is_array($data) && isset($data['users']) && is_array($data['users'])) {
+      return $data;
+    }
+  }
+  // Tự động khôi phục từ bản sao lưu tức thời (.bak) hoặc bản sao lưu gần nhất nếu tệp chính bị lỗi
+  $bakFile = $dbFile . '.bak';
+  if (is_file($bakFile)) {
+    $raw = (string)@file_get_contents($bakFile);
+    $data = json_decode($raw, true);
+    if (is_array($data) && isset($data['users']) && is_array($data['users'])) {
+      @file_put_contents($dbFile, $raw, LOCK_EX);
+      return $data;
+    }
+  }
+  if ($backupDir !== '' && is_dir($backupDir)) {
+    $files = @glob($backupDir . '/*.json') ?: [];
+    usort($files, fn($a, $b) => (int)@filemtime($b) <=> (int)@filemtime($a));
+    foreach ($files as $f) {
+      $raw = (string)@file_get_contents($f);
+      $data = json_decode($raw, true);
+      if (is_array($data) && isset($data['users']) && is_array($data['users'])) {
+        @file_put_contents($dbFile, $raw, LOCK_EX);
+        return $data;
+      }
+    }
+  }
+  return null;
 }
 
-function _lhSaveRawDb(string $dbFile, array $data, string $revFile = ''): int {
+function _lhPruneBackups(string $backupDir, int $maxKeep = 30): void {
+  if (!is_dir($backupDir)) return;
+  $files = @glob($backupDir . '/*.json') ?: [];
+  if (count($files) <= $maxKeep) return;
+  usort($files, fn($a, $b) => (int)@filemtime($b) <=> (int)@filemtime($a));
+  foreach (array_slice($files, $maxKeep) as $old) {
+    @unlink($old);
+  }
+}
+
+function _lhCreateBackupSnapshot(string $backupDir, string $json, string $type = 'auto', int $maxKeep = 30): string {
+  if (!is_dir($backupDir)) @mkdir($backupDir, 0755, true);
+  $stamp = date('Ymd-His');
+  $prefix = in_array($type, ['auto', 'daily', 'manual', 'pre-restore'], true) ? $type : 'auto';
+  $name = ($prefix === 'daily') ? ('daily-' . date('Ymd') . '.json') : ($prefix . '-' . $stamp . '.json');
+  $dest = $backupDir . '/' . $name;
+  @file_put_contents($dest, $json, LOCK_EX);
+  @file_put_contents($backupDir . '/last_auto.ts', (string)time(), LOCK_EX);
+  _lhPruneBackups($backupDir, $maxKeep);
+  return $name;
+}
+
+function _lhListBackups(string $backupDir): array {
+  if (!is_dir($backupDir)) return [];
+  $files = @glob($backupDir . '/*.json') ?: [];
+  usort($files, fn($a, $b) => (int)@filemtime($b) <=> (int)@filemtime($a));
+  $out = [];
+  foreach (array_slice($files, 0, 30) as $f) {
+    $bn = basename($f);
+    $mtime = (int)@filemtime($f);
+    $size = (int)@filesize($f);
+    $type = strpos($bn, 'manual-') === 0 ? 'manual' : (strpos($bn, 'daily-') === 0 ? 'daily' : (strpos($bn, 'pre-restore-') === 0 ? 'pre-restore' : 'auto'));
+    $raw = (string)@file_get_contents($f);
+    $d = json_decode($raw, true);
+    $counts = is_array($d) ? [
+      'users' => isset($d['users']) && is_array($d['users']) ? count($d['users']) : 0,
+      'reports' => isset($d['reports']) && is_array($d['reports']) ? count($d['reports']) : 0,
+      'counseling' => isset($d['counseling']) && is_array($d['counseling']) ? count($d['counseling']) : 0,
+      'messages' => isset($d['schoolChat']['messages']) && is_array($d['schoolChat']['messages']) ? count($d['schoolChat']['messages']) : 0,
+    ] : ['users' => 0, 'reports' => 0, 'counseling' => 0, 'messages' => 0];
+    $out[] = [
+      'id' => $bn,
+      'type' => $type,
+      'at' => gmdate('Y-m-d\TH:i:s\Z', $mtime ?: time()),
+      'size' => $size,
+      'counts' => $counts,
+    ];
+  }
+  return $out;
+}
+
+function _lhSaveRawDb(string $dbFile, array $data, string $revFile = '', string $backupDir = ''): int {
   $json = json_encode($data, JSON_UNESCAPED_UNICODE);
   if ($json === false) return 0;
   $tmpFile = $dbFile . '.tmp.' . getmypid() . '.' . mt_rand(1000, 9999);
@@ -149,6 +233,21 @@ function _lhSaveRawDb(string $dbFile, array $data, string $revFile = ''): int {
     @rename($tmpFile, $dbFile);
   } else {
     @file_put_contents($dbFile, $json, LOCK_EX);
+  }
+  // Bản sao lưu tức thời (.bak) để tự phục hồi ngay nếu tệp chính gặp sự cố ghi đĩa
+  @file_put_contents($dbFile . '.bak', $json, LOCK_EX);
+  // Tự động chụp bản sao lưu theo ngày (daily) và định kỳ mỗi 15 phút (auto) khi có thay đổi
+  if ($backupDir !== '') {
+    $dailyFile = $backupDir . '/daily-' . date('Ymd') . '.json';
+    if (!is_file($dailyFile)) {
+      _lhCreateBackupSnapshot($backupDir, $json, 'daily', 30);
+    } else {
+      $lastTsFile = $backupDir . '/last_auto.ts';
+      $lastTs = is_file($lastTsFile) ? (int)trim((string)@file_get_contents($lastTsFile)) : 0;
+      if (time() - $lastTs >= 900) {
+        _lhCreateBackupSnapshot($backupDir, $json, 'auto', 30);
+      }
+    }
   }
   clearstatcache(true, $dbFile);
   $nowMs = (int)round(microtime(true) * 1000);
@@ -569,7 +668,16 @@ function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer, bool $a
 // ============================================================================
 //  XỬ LÝ CÁC HÀNH ĐỘNG TRONG GÓI NHỊ PHÂN ĐÃ MÃ HÓA
 // ============================================================================
-$dbData = _lhLoadRawDb($dbFile);
+$dbData = _lhLoadRawDb($dbFile, $backupDir);
+if ($dbData && !is_file($backupDir . '/daily-' . date('Ymd') . '.json')) {
+  $initJson = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+  if ($initJson !== false) {
+    _lhCreateBackupSnapshot($backupDir, $initJson, 'daily', 30);
+    if (!is_file($dbFile . '.bak')) {
+      @file_put_contents($dbFile . '.bak', $initJson, LOCK_EX);
+    }
+  }
+}
 $verified = ($dbData && $reqToken !== '') ? _lhVerifyToken($reqToken, $secret, $dbData['users']) : null;
 $viewer = $verified ? $verified['user'] : null;
 
@@ -700,12 +808,82 @@ if ($action === 'save') {
   }
   $allowDelete = !empty($req['allowDelete']);
   $merged = $dbData ? _lhMergeSave($dbData, $incoming, $viewer, $allowDelete) : $incoming;
-  $mtime = _lhSaveRawDb($dbFile, $merged, $revFile);
+  $mtime = _lhSaveRawDb($dbFile, $merged, $revFile, $backupDir);
   if (!$mtime) {
     _lhSendPkt(['ok' => false, 'error' => 'Không thể lưu dữ liệu.'], $pktKey, 500);
   }
   $filtered = _lhFilterDataForViewer($merged, $viewer);
   _lhSendPkt(['ok' => true, 'mtime' => $mtime, 'data' => $filtered], $pktKey);
+}
+
+// F2. Quản lý Sao lưu & Khôi phục dữ liệu tự động (dành cho Quản trị / Giáo viên)
+if (strpos($action, 'backup-') === 0) {
+  $vRole = $viewer['role'] ?? 'guest';
+  if ($vRole !== 'admin' && $vRole !== 'teacher') {
+    _lhSendPkt(['ok' => false, 'error' => 'Chỉ Quản trị viên mới có quyền truy cập sao lưu.'], $pktKey, 403);
+  }
+  if ($action === 'backup-list') {
+    _lhSendPkt(['ok' => true, 'items' => _lhListBackups($backupDir)], $pktKey);
+  }
+  if ($vRole !== 'admin') {
+    _lhSendPkt(['ok' => false, 'error' => 'Chỉ Ban Giám hiệu mới có quyền thao tác sao lưu & khôi phục.'], $pktKey, 403);
+  }
+  if ($action === 'backup-create') {
+    if (!$dbData) _lhSendPkt(['ok' => false, 'error' => 'Chưa có dữ liệu.'], $pktKey, 400);
+    $json = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+    $name = $json !== false ? _lhCreateBackupSnapshot($backupDir, $json, 'manual', 30) : '';
+    _lhSendPkt(['ok' => true, 'created' => $name, 'items' => _lhListBackups($backupDir)], $pktKey);
+  }
+  if ($action === 'backup-delete') {
+    $id = basename((string)($req['id'] ?? ''));
+    if ($id !== '' && substr($id, -5) === '.json' && is_file($backupDir . '/' . $id)) {
+      @unlink($backupDir . '/' . $id);
+    }
+    _lhSendPkt(['ok' => true, 'items' => _lhListBackups($backupDir)], $pktKey);
+  }
+  if ($action === 'backup-download') {
+    $id = basename((string)($req['id'] ?? ''));
+    $srcData = $dbData;
+    if ($id !== '' && substr($id, -5) === '.json' && is_file($backupDir . '/' . $id)) {
+      $d = json_decode((string)@file_get_contents($backupDir . '/' . $id), true);
+      if (is_array($d) && isset($d['users'])) $srcData = $d;
+    }
+    $safe = $srcData ? _lhFilterDataForViewer($srcData, $viewer) : null;
+    _lhSendPkt(['ok' => true, 'id' => $id ?: ('backup-' . date('Ymd-His') . '.json'), 'backup' => $safe], $pktKey);
+  }
+  if ($action === 'backup-restore') {
+    $id = basename((string)($req['id'] ?? ''));
+    $targetFile = $backupDir . '/' . $id;
+    if ($id === '' || substr($id, -5) !== '.json' || !is_file($targetFile)) {
+      _lhSendPkt(['ok' => false, 'error' => 'Không tìm thấy bản sao lưu cần khôi phục.'], $pktKey, 404);
+    }
+    $restored = json_decode((string)@file_get_contents($targetFile), true);
+    if (!is_array($restored) || !isset($restored['users']) || !is_array($restored['users'])) {
+      _lhSendPkt(['ok' => false, 'error' => 'Tệp sao lưu không hợp lệ.'], $pktKey, 400);
+    }
+    if ($dbData) {
+      $preJson = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+      if ($preJson !== false) _lhCreateBackupSnapshot($backupDir, $preJson, 'pre-restore', 30);
+      $restored['users'] = _lhRestoreRealHashes($dbData['users'] ?? [], $restored['users']);
+    }
+    $mtime = _lhSaveRawDb($dbFile, $restored, $revFile, $backupDir);
+    $filtered = _lhFilterDataForViewer($restored, $viewer);
+    _lhSendPkt(['ok' => true, 'mtime' => $mtime, 'data' => $filtered, 'items' => _lhListBackups($backupDir)], $pktKey);
+  }
+  if ($action === 'backup-import') {
+    $restored = isset($req['backup']) && is_array($req['backup']) ? $req['backup'] : null;
+    if (!is_array($restored) || !isset($restored['users']) || !is_array($restored['users'])) {
+      _lhSendPkt(['ok' => false, 'error' => 'Tệp sao lưu tải lên không hợp lệ.'], $pktKey, 400);
+    }
+    if ($dbData) {
+      $preJson = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+      if ($preJson !== false) _lhCreateBackupSnapshot($backupDir, $preJson, 'pre-restore', 30);
+      $restored['users'] = _lhRestoreRealHashes($dbData['users'] ?? [], $restored['users']);
+    }
+    $mtime = _lhSaveRawDb($dbFile, $restored, $revFile, $backupDir);
+    $filtered = _lhFilterDataForViewer($restored, $viewer);
+    _lhSendPkt(['ok' => true, 'mtime' => $mtime, 'data' => $filtered, 'items' => _lhListBackups($backupDir)], $pktKey);
+  }
 }
 
 // G. Mặc định: action = load (lọc dữ liệu theo quyền của token hiện tại)

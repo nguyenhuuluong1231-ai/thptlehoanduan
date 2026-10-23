@@ -32,12 +32,14 @@ const HOST = process.env.HOST || '0.0.0.0';
 const DATA_DIR = path.resolve(ROOT, process.env.DATA_DIR || 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const PUBLIC_DIR = fs.existsSync(path.join(ROOT, 'public', 'index.html')) ? path.join(ROOT, 'public') : ROOT;
 const SHARED_DIR = path.join(ROOT, 'shared');
 const MAX_BODY = 400 * 1024 * 1024; // đủ chỗ cho các biểu mẫu gửi cùng lúc 2 ảnh (vd. ảnh đại diện + ảnh chứng chỉ), mỗi ảnh tối đa 100 MB gốc, cộng chi phí mã hóa + base64 (~gấp 1.8 lần)
 const MAX_UPLOAD = 25 * 1024 * 1024; // tệp đính kèm tối đa 25 MB (gửi dạng base64 nên thân yêu cầu lớn hơn ~4/3)
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 // ---------------------------------------------------------------------------
 // Mật mã: băm mật khẩu scrypt, token ký HMAC-SHA256 (tương tự JWT)
@@ -116,6 +118,52 @@ function decryptAtRest(fileText) {
 // ---------------------------------------------------------------------------
 // Cơ sở dữ liệu JSON: đọc vào bộ nhớ, ghi xuống đĩa an toàn (ghi tệp tạm rồi đổi tên), mã hóa khi lưu
 // ---------------------------------------------------------------------------
+let lastAutoBackupAt = 0;
+function fmtStamp(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+function pruneBackups(maxKeep = 30) {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).map(f => ({ f, t: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs })).sort((a, b) => b.t - a.t);
+    for (const x of files.slice(maxKeep)) fs.rmSync(path.join(BACKUP_DIR, x.f), { force: true });
+  } catch { /* bỏ qua */ }
+}
+async function createBackupSnapshot(type = 'auto', dataObj = db.data) {
+  if (!dataObj) return '';
+  const now = new Date();
+  const stamp = fmtStamp(now);
+  const name = type === 'daily' ? `daily-${stamp.slice(0, 8)}.json` : `${type}-${stamp}.json`;
+  const json = JSON.stringify(dataObj);
+  await fsp.writeFile(path.join(BACKUP_DIR, name), json, 'utf8');
+  lastAutoBackupAt = Date.now();
+  pruneBackups(30);
+  return name;
+}
+function listBackupsSync() {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).map(f => {
+      const p = path.join(BACKUP_DIR, f);
+      const st = fs.statSync(p);
+      return { f, p, mtimeMs: st.mtimeMs, size: st.size };
+    }).sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, 30);
+    return files.map(x => {
+      let counts = { users: 0, reports: 0, counseling: 0, messages: 0 };
+      try {
+        const d = JSON.parse(fs.readFileSync(x.p, 'utf8'));
+        counts = {
+          users: d.users?.length || 0,
+          reports: d.reports?.length || 0,
+          counseling: d.counseling?.length || 0,
+          messages: d.schoolChat?.messages?.length || 0,
+        };
+      } catch { /* bỏ qua */ }
+      const type = x.f.startsWith('manual-') ? 'manual' : x.f.startsWith('daily-') ? 'daily' : x.f.startsWith('pre-restore-') ? 'pre-restore' : 'auto';
+      return { id: x.f, type, at: new Date(x.mtimeMs).toISOString(), size: x.size, counts };
+    });
+  } catch { return []; }
+}
+
 const db = {
   data: null, timer: null, writing: Promise.resolve(),
   async load() {
@@ -129,6 +177,8 @@ const db = {
         this.data = JSON.parse(plain);
         if (migrateData(this.data)) { upgraded = true; console.log('  ✓ Đã nâng cấp dữ liệu cũ lên phiên bản mới'); }
         if (upgraded) await this.flush();
+        const dailyName = `daily-${fmtStamp().slice(0, 8)}.json`;
+        if (!fs.existsSync(path.join(BACKUP_DIR, dailyName))) await createBackupSnapshot('daily', this.data);
         return false;
       } catch (e) { const bak = DB_FILE + '.corrupt-' + Date.now(); fs.renameSync(DB_FILE, bak); console.warn('⚠ db.json bị lỗi, đã sao lưu sang', bak, '·', e.message); }
     }
@@ -144,13 +194,22 @@ const db = {
   flush() {
     clearTimeout(this.timer);
     this.writing = this.writing.then(async () => {
+      const json = JSON.stringify(this.data);
       const tmp = DB_FILE + '.tmp';
-      await fsp.writeFile(tmp, encryptAtRest(JSON.stringify(this.data)));
+      await fsp.writeFile(tmp, encryptAtRest(json));
       await fsp.rename(tmp, DB_FILE);
+      await fsp.writeFile(path.join(DATA_DIR, 'db-live.json'), json).catch(() => {});
+      const dailyName = `daily-${fmtStamp().slice(0, 8)}.json`;
+      if (!fs.existsSync(path.join(BACKUP_DIR, dailyName))) {
+        await createBackupSnapshot('daily', this.data).catch(() => {});
+      } else if (Date.now() - lastAutoBackupAt >= 15 * 60 * 1000) {
+        await createBackupSnapshot('auto', this.data).catch(() => {});
+      }
     }).catch(e => console.error('Lỗi ghi dữ liệu:', e));
     return this.writing;
   },
 };
+setInterval(() => { if (db.data) createBackupSnapshot('auto', db.data).catch(() => {}); }, 30 * 60 * 1000).unref();
 
 // ---------------------------------------------------------------------------
 // Lưu ảnh tải lên (data URL → tệp trong data/uploads)
@@ -226,8 +285,51 @@ function buildLlm() {
 // ---------------------------------------------------------------------------
 // HTTP server
 // ---------------------------------------------------------------------------
+const backupsService = {
+  async list() { return { items: listBackupsSync() }; },
+  async create() { const created = await createBackupSnapshot('manual', db.data); return { created, items: listBackupsSync() }; },
+  async remove(id) {
+    const fn = path.basename(String(id || ''));
+    if (fn.endsWith('.json')) await fsp.rm(path.join(BACKUP_DIR, fn), { force: true });
+    return { items: listBackupsSync() };
+  },
+  async download(id) {
+    const fn = path.basename(String(id || ''));
+    let src = db.data;
+    if (fn.endsWith('.json') && fs.existsSync(path.join(BACKUP_DIR, fn))) {
+      src = JSON.parse(await fsp.readFile(path.join(BACKUP_DIR, fn), 'utf8'));
+    }
+    return { id: fn || `backup-${fmtStamp()}.json`, backup: src };
+  },
+  async restore(id) {
+    const fn = path.basename(String(id || ''));
+    const p = path.join(BACKUP_DIR, fn);
+    if (!fn.endsWith('.json') || !fs.existsSync(p)) throw httpError(404, 'Không tìm thấy bản sao lưu.');
+    const restored = JSON.parse(await fsp.readFile(p, 'utf8'));
+    if (!restored?.users) throw httpError(400, 'Tệp sao lưu không hợp lệ.');
+    await createBackupSnapshot('pre-restore', db.data);
+    db.data = restored;
+    await db.flush();
+    emit('sync', { at: new Date().toISOString(), restored: fn }, { all: true });
+    return { items: listBackupsSync() };
+  },
+  async importData(restored) {
+    if (!restored?.users || !Array.isArray(restored.users)) throw httpError(400, 'Tệp sao lưu tải lên không hợp lệ.');
+    await createBackupSnapshot('pre-restore', db.data);
+    const oldMap = new Map((db.data?.users || []).map(u => [u.id, u.passwordHash]));
+    for (const u of restored.users) {
+      if (String(u.passwordHash || '').endsWith('$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA') && oldMap.has(u.id)) {
+        u.passwordHash = oldMap.get(u.id);
+      }
+    }
+    db.data = restored;
+    await db.flush();
+    emit('sync', { at: new Date().toISOString(), restored: 'import' }, { all: true });
+    return { items: listBackupsSync() };
+  },
+};
 const api = buildApi();
-const ctx = { db, crypto: cryptoProvider, emit, storeFile, storeUpload, lanUrls, llm: null, envAi: ENV_AI, makeLlm, reloadLlm() { this.llm = buildLlm(); return this.llm; }, mode: 'server', reseed: () => db.reseed(), log: (m) => console.warn(`${new Date().toLocaleTimeString('vi-VN')}  ⚠ ${m}`) };
+const ctx = { db, backups: backupsService, crypto: cryptoProvider, emit, storeFile, storeUpload, lanUrls, llm: null, envAi: ENV_AI, makeLlm, reloadLlm() { this.llm = buildLlm(); return this.llm; }, mode: 'server', reseed: () => db.reseed(), log: (m) => console.warn(`${new Date().toLocaleTimeString('vi-VN')}  ⚠ ${m}`) };
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.md': 'text/markdown; charset=utf-8', '.webmanifest': 'application/manifest+json', '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.3gp': 'video/3gpp', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.weba': 'audio/webm', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.pdf': 'application/pdf', '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.ppt': 'application/vnd.ms-powerpoint', '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', '.zip': 'application/zip', '.rar': 'application/vnd.rar' };
 const ALIASES = { '/': 'index.html', '/login': 'index.html', '/dang-nhap': 'index.html', '/login.html': 'index.html', '/loginhocinh': 'index.html', '/loginhocsinh': 'index.html', '/login-hoc-sinh': 'index.html', '/dang-nhap-hoc-sinh': 'index.html', '/app': 'app.html', '/hoc-sinh': 'app.html', '/desktop.html': 'app.html', '/admin': 'admin.html', '/quan-tri-vien': 'admin.html', '/giao-vien': 'admin.html', '/giaovien.html': 'admin.html', '/teacher': 'admin.html', '/admin-login': 'staff.html', '/admin-login.html': 'staff.html', '/loginadmin': 'staff.html', '/login-admin': 'staff.html', '/dang-nhap-admin': 'staff.html', '/dang-nhap-quan-tri': 'staff.html', '/quan-tri': 'staff.html', '/giaovien_login.html': 'staff.html', '/dang-nhap-giao-vien': 'staff.html', '/logingiaovien': 'staff.html', '/staff': 'staff.html', '/docs': 'docs.html', '/mobile': 'phone.html', '/phone': 'phone.html', '/app-dien-thoai': 'phone.html', '/dien-thoai': 'phone.html', '/api-docs': 'docs.html' };

@@ -94,6 +94,40 @@ export default function adminRoutes(r) {
 
   r.post('/api/admin/reset-demo', { auth: 'admin', group: D, desc: 'Khôi phục dữ liệu mẫu ban đầu (chỉ Ban Giám hiệu).' }, async (req, ctx) => { await ctx.reseed(); ctx.emit('sync', { at: nowISO(), reset: true }, { all: true }); return { ok: true, message: 'Đã khôi phục dữ liệu mẫu.' }; });
 
+  // ================= SAO LƯU & KHÔI PHỤC TỰ ĐỘNG =================
+  r.get('/api/admin/backups', { auth: 'staff', group: D, desc: 'Danh sách các bản sao lưu tự động và thủ công trên máy chủ.' }, async (req, ctx) => {
+    if (!ctx.backups) return { items: [] };
+    return await ctx.backups.list();
+  });
+
+  r.post('/api/admin/backups', { auth: 'admin', group: D, desc: 'Tạo một bản sao lưu dữ liệu ngay lập tức.' }, async (req, ctx) => {
+    if (!ctx.backups) fail(501, 'Chức năng sao lưu chưa khả dụng.');
+    const res = await ctx.backups.create();
+    audit(ctx, req.user, 'Tạo bản sao lưu dữ liệu', res?.created || 'manual');
+    ctx.db.save();
+    return { ok: true, ...res, message: 'Đã tạo bản sao lưu dữ liệu thành công.' };
+  });
+
+  r.get('/api/admin/backups/download', { auth: 'admin', group: D, desc: 'Tải về nội dung JSON của bản sao lưu.' }, async (req, ctx) => {
+    if (!ctx.backups) return { id: `backup-${localDate()}.json`, backup: ctx.db.data };
+    return await ctx.backups.download(req.query.id || '');
+  });
+
+  r.post('/api/admin/backups/restore', { auth: 'admin', group: D, desc: 'Khôi phục dữ liệu từ bản sao lưu trên máy chủ hoặc tệp JSON tải lên.' }, async (req, ctx) => {
+    if (!ctx.backups) fail(501, 'Chức năng khôi phục chưa khả dụng.');
+    const b = req.body || {};
+    const res = b.backup ? await ctx.backups.importData(b.backup) : await ctx.backups.restore(str(b.id, 'mã bản sao lưu', { required: true, max: 120 }));
+    audit(ctx, req.user, 'Khôi phục dữ liệu từ bản sao lưu', b.id || 'Tệp tải lên');
+    ctx.db.save();
+    return { ok: true, ...res, message: 'Đã khôi phục dữ liệu thành công.' };
+  });
+
+  r.delete('/api/admin/backups/:id', { auth: 'admin', group: D, desc: 'Xóa một bản sao lưu trên máy chủ.' }, async (req, ctx) => {
+    if (!ctx.backups) fail(501, 'Chức năng xóa sao lưu chưa khả dụng.');
+    const res = await ctx.backups.remove(req.params.id);
+    return { ok: true, ...res, message: 'Đã xóa bản sao lưu.' };
+  });
+
   // ================= TÀI KHOẢN =================
   r.get('/api/admin/classes', { auth: 'staff', group: U, desc: 'Danh sách lớp và sĩ số.' }, async (req, ctx) => ({ items: ctx.db.data.classes.map(c => ({ ...c, size: ctx.db.data.users.filter(u => u.classId === c.id).length, homeroomName: ctx.db.data.users.find(u => u.id === c.homeroom)?.name })) }));
 
