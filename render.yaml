@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: tuvantamlihocduonglehoan
+    runtime: node
+    plan: free
+    buildCommand: node -v
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradSmoke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e24"/>
+      <stop offset="100%" stop-color="#2d2d3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="260" fill="url(#bgGradSmoke)"/>
+  <!-- Cafe awning outside school -->
+  <polygon points="40,60 360,60 380,110 20,110" fill="#f59e0b"/>
+  <rect x="20" y="110" width="360" height="15" fill="#d97706"/>
+  <text x="200" y="95" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">QUÁN NƯỚC CỔNG PHỤ TRƯỜNG HỌC</text>
+  
+  <!-- Table and chairs -->
+  <rect x="140" y="180" width="120" height="15" rx="4" fill="#92400e"/>
+  <rect x="195" y="195" width="10" height="45" fill="#78350f"/>
+  
+  <!-- Cigarette / Vape Pod Icon Prohibition -->
+  <circle cx="200" cy="155" r="32" fill="#ef4444" opacity="0.95"/>
+  <line x1="178" y1="133" x2="222" y2="177" stroke="#ffffff" stroke-width="4"/>
+  <text x="200" y="162" fill="#ffffff" font-family="sans-serif" font-size="22" font-weight="900" text-anchor="middle">🚭</text>
+
+  <!-- Alert Badge -->
+  <rect x="270" y="20" width="120" height="30" rx="6" fill="#dc2626"/>
+  <text x="330" y="40" fill="#ffffff" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">HÚT THUỐC LÁ/POD</text>
+
+  <!-- Live Stamp -->
+  <rect x="15" y="220" width="270" height="26" rx="4" fill="rgba(0,0,0,0.75)"/>
+  <text x="25" y="238" fill="#facc15" font-family="monospace" font-size="11" font-weight="bold">📍 Quán đối diện cổng phụ - 15/10 08:20</text>
+</svg>

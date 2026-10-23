@@ -1,0 +1,26 @@
+{
+  "name": "lehoan-portal",
+  "version": "2.0.0",
+  "description": "Cổng Học Đường Số THPT Lê Hoàn — an toàn học đường, tư vấn tâm lý, trắc nghiệm, khảo sát KH-KT và AI chống lừa đảo (Node.js, REST API, realtime)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "reset": "node -e \"require('fs').rmSync('data/db.json',{force:true});console.log('Đã xóa data/db.json — dữ liệu mẫu sẽ được tạo lại khi khởi động.')\"",
+    "test": "node scripts/smoke-test.js",
+    "docs": "node scripts/gen-api-docs.js",
+    "test:ai": "node scripts/test-ai.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "keywords": [
+    "school",
+    "nodejs",
+    "rest-api",
+    "an-toan-hoc-duong",
+    "khkt"
+  ],
+  "license": "MIT"
+}

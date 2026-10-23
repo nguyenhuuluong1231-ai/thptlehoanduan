@@ -1,0 +1,13 @@
+{
+  "appId": "vn.edu.lehoan.portal",
+  "appName": "THPT Lê Hoàn",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#f4f6fb"
+  }
+}

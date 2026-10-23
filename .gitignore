@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.log
+*.tmp
+*.corrupt-*
+.DS_Store
+lehoan-portal-cpanel.zip
+_tmp_*
+cloudflared.exe
+tools/gen-accounts/output/
