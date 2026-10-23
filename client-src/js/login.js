@@ -194,7 +194,6 @@ function render() {
         <div class="foot">
           <span>${icon('phone')} Khẩn cấp: <b style="color:#fff">111</b> (24/7)</span>
           <span>${icon('info')} <button type="button" class="lcf-plink" data-lcf-modal="about" style="color:#fff;font-weight:600">Giới thiệu trang web</button></span>
-          <span>${icon('smartphone')} <a href="phone.html" style="color:#fff">App điện thoại</a></span>
           <span>${icon('code')} <a href="docs.html" style="color:#fff">REST API</a></span>
         </div>
       </section>
