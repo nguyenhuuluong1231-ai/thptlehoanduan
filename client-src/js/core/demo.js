@@ -77,16 +77,7 @@ const verifiedTokens = new Map();
 
 function getActiveToken() {
   if (activeReqToken) return activeReqToken;
-  const t = tokenGetter?.();
-  if (t) return t;
-  try {
-    const p = document.body?.dataset?.portal || 'student';
-    for (const k of [`lh_token_${p}`, 'lh_token_admin', 'lh_token_staff', 'lh_token_student', 'lh_token_mobile']) {
-      const v = sessionStorage.getItem(k) || ls.get(k);
-      if (v) return v;
-    }
-  } catch { /* bỏ qua */ }
-  return '';
+  return tokenGetter?.() || '';
 }
 
 const cryptoProvider = {

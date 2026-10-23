@@ -41,6 +41,15 @@ export const session = {
     return tok;
   },
   set(token, remember = true, noIdle = isAppEnv()) {
+    if (isAppEnv()) {
+      for (const p of ['student', 'staff', 'admin', 'mobile']) {
+        if (p !== portal) {
+          delete memToken[p];
+          try { sessionStorage.removeItem(`lh_token_${p}`); } catch { /* bỏ qua */ }
+          store.del(`lh_token_${p}`);
+        }
+      }
+    }
     memToken[portal] = token;
     try { sessionStorage.setItem(tokenKey(), token); } catch { /* bỏ qua */ }
     if (remember || noIdle) store.set(tokenKey(), token); else store.del(tokenKey());
@@ -54,14 +63,15 @@ export const session = {
     store.set(activeKey(), now);
   },
   clear() {
-    delete memToken[portal];
-    try {
-      sessionStorage.removeItem(tokenKey());
-      sessionStorage.removeItem('lh_phone_src');
-    } catch { /* bỏ qua */ }
-    store.del(tokenKey());
-    store.del(activeKey());
-    store.del(noIdleKey());
+    const portals = isAppEnv() ? ['student', 'staff', 'admin', 'mobile'] : [portal];
+    for (const p of portals) {
+      delete memToken[p];
+      try { sessionStorage.removeItem(`lh_token_${p}`); } catch { /* bỏ qua */ }
+      store.del(`lh_token_${p}`);
+      store.del(activeKey(p));
+      store.del(noIdleKey(p));
+    }
+    try { sessionStorage.removeItem('lh_phone_src'); } catch { /* bỏ qua */ }
     store.del('lh_phone_src');
   },
   /** Âm thầm thay bằng token mới (máy chủ tự đổi token định kỳ khi còn hoạt động) — giữ nguyên chế độ "ghi nhớ đăng nhập" đã chọn lúc trước. */

@@ -70,16 +70,7 @@ let lastPwProof = '', lastFaceHash = '';
 const verifiedTokens = new Map();
 function getActiveToken() {
 if (activeReqToken) return activeReqToken;
-const t = tokenGetter?.();
-if (t) return t;
-try {
-const p = document.body?.dataset?.portal || _lhD("c3R1ZGVudA==");
-for (const k of [`${_lhD("bGhfdG9rZW5f")}${p}`, _lhD("bGhfdG9rZW5fYWRtaW4="), _lhD("bGhfdG9rZW5fc3RhZmY="), _lhD("bGhfdG9rZW5fc3R1ZGVudA=="), _lhD("bGhfdG9rZW5fbW9iaWxl")]) {
-const v = sessionStorage.getItem(k) || ls.get(k);
-if (v) return v;
-}
-} catch {  }
-return '';
+return tokenGetter?.() || '';
 }
 const cryptoProvider = {
 hashPassword,

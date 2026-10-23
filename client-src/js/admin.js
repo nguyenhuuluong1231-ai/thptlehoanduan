@@ -84,7 +84,7 @@ const TONE = { pending: '', verifying: 'warn', reminded: 'info', disciplined: 'b
 const SEV_TONE = { low: '', medium: 'warn', high: 'bad', critical: 'critical' };
 const LEVEL = { red: ['Khẩn cấp', 'critical', 'var(--bad)'], orange: ['Cao', 'bad', 'var(--accent)'], yellow: ['Theo dõi', 'warn', 'var(--warn)'] };
 
-const staffLoginUrl = () => (window.self !== window.top || isNativeApp() ? './' : 'staff.html');
+const staffLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) ? 'index.html?mobile=1&switch=1' : (isNativeApp() ? './?switch=1' : 'staff.html'));
 
 // ---------------------------------------------------------------------------
 async function boot() {

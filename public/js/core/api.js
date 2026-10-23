@@ -35,6 +35,15 @@ if (!last) store.set(activeKey(), Date.now());
 return tok;
 },
 set(token, remember = true, noIdle = isAppEnv()) {
+if (isAppEnv()) {
+for (const p of [_lhD("c3R1ZGVudA=="), _lhD("c3RhZmY="), _lhD("YWRtaW4="), _lhD("bW9iaWxl")]) {
+if (p !== portal) {
+delete memToken[p];
+try { sessionStorage.removeItem(`${_lhD("bGhfdG9rZW5f")}${p}`); } catch {  }
+store.del(`${_lhD("bGhfdG9rZW5f")}${p}`);
+}
+}
+}
 memToken[portal] = token;
 try { sessionStorage.setItem(tokenKey(), token); } catch {  }
 if (remember || noIdle) store.set(tokenKey(), token); else store.del(tokenKey());
@@ -48,14 +57,15 @@ lastTouch = now;
 store.set(activeKey(), now);
 },
 clear() {
-delete memToken[portal];
-try {
-sessionStorage.removeItem(tokenKey());
-sessionStorage.removeItem(_lhD("bGhfcGhvbmVfc3Jj"));
-} catch {  }
-store.del(tokenKey());
-store.del(activeKey());
-store.del(noIdleKey());
+const portals = isAppEnv() ? [_lhD("c3R1ZGVudA=="), _lhD("c3RhZmY="), _lhD("YWRtaW4="), _lhD("bW9iaWxl")] : [portal];
+for (const p of portals) {
+delete memToken[p];
+try { sessionStorage.removeItem(`${_lhD("bGhfdG9rZW5f")}${p}`); } catch {  }
+store.del(`${_lhD("bGhfdG9rZW5f")}${p}`);
+store.del(activeKey(p));
+store.del(noIdleKey(p));
+}
+try { sessionStorage.removeItem(_lhD("bGhfcGhvbmVfc3Jj")); } catch {  }
 store.del(_lhD("bGhfcGhvbmVfc3Jj"));
 },
 update(token) { if (!token) return; this.set(token, store.get(tokenKey()) !== null, isAppSession()); },
