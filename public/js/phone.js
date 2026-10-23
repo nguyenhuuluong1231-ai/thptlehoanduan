@@ -1,8 +1,8 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, detect, getMode } from './core/api.js?v=mvkrb363';
-import { icon } from './core/icons.js?v=mvkrb363';
-import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './core/ui.js?v=mvkrb363';
-import { qrSvg } from './core/qr.js?v=mvkrb363';
+import { api, detect, getMode } from './core/api.js?v=mvkrdvxo';
+import { icon } from './core/icons.js?v=mvkrdvxo';
+import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './core/ui.js?v=mvkrdvxo';
+import { qrSvg } from './core/qr.js?v=mvkrdvxo';
 initTheme(); initDevToolsGuard();
 const IS_REAL_PHONE = (matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) && !/[?&]frame/.test(location.search);
 const DEVICES = {
