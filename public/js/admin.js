@@ -1,8 +1,8 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkqq6wf';
-import { icon, drumArt } from './core/icons.js?v=mvkqq6wf';
+import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkrb363';
+import { icon, drumArt } from './core/icons.js?v=mvkrb363';
 import { $, $$, esc, toast, modal, confirmDialog, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, donut, gauge, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkqq6wf';
+fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkrb363';
 const aiOfflineNote = (ai) => getMode() === _lhD("ZGVtbw==") && !ai?.enabled && isNativeApp() ? `${_lhD("PGRpdiBjbGFzcz0iY2FyZCBzb2Z0IHNtYWxsIHJvdyBub3dyYXAiIHN0eWxlPSJwYWRkaW5nOjEwcHggMTRweDtnYXA6OHB4Ij4=")}${icon(_lhD("aW5mbw=="))}${_lhD("PHNwYW4+QXBwIMSRYW5nIOG7nyA8Yj5i4bqjbiB0cuG6o2kgbmdoaeG7h208L2I+IG7Dqm4gZMO5bmcgY2jhur8gxJHhu5kgY8ahIGLhuqNuLiDEkMSDbmcgeHXhuqV0IOKGkiA8Yj5Nw6F5IGNo4bunIHRyxrDhu51uZzwvYj4g4oaSIG5o4bqtcCDEkeG7i2EgY2jhu4kgbcOheSBjaOG7pyDEkeG7gyBkw7luZyBBSSBj4bunYSBuaMOgIHRyxrDhu51uZy48L3NwYW4+PC9kaXY+")}` : '';
 const aiPill = (ai) => ai?.enabled ? `${_lhD("PHNwYW4gY2xhc3M9ImJhZGdlIHZpb2xldCIgdGl0bGU9Ig==")}${esc(ai.label || '')}${_lhD("Ij4=")}${icon(_lhD("c3BhcmtsZXM="))}${_lhD("IEFJIHRo4bqtdCDEkWFuZyBi4bqtdDwvc3Bhbj4=")}` : _lhD("PHNwYW4gY2xhc3M9ImJhZGdlIiB0aXRsZT0iVGjDqm0ga2jDs2EgQVBJIHRyb25nIC5lbnYgxJHhu4MgYuG6rXQgQUkiPkLhu5kgbHXhuq10IMK3IGNoxrBhIGLhuq10IEFJPC9zcGFuPg==");
 function autoGrow(ta, onEnter) {
@@ -75,6 +75,10 @@ const SEV_TONE = { low: '', medium: _lhD("d2Fybg=="), high: _lhD("YmFk"), critic
 const LEVEL = { red: [_lhD("S2jhuqluIGPhuqVw"), _lhD("Y3JpdGljYWw="), _lhD("dmFyKC0tYmFkKQ==")], orange: [_lhD("Q2Fv"), _lhD("YmFk"), _lhD("dmFyKC0tYWNjZW50KQ==")], yellow: [_lhD("VGhlbyBkw7Vp"), _lhD("d2Fybg=="), _lhD("dmFyKC0td2Fybik=")] };
 const staffLoginUrl = () => (window.self !== window.top || isNativeApp() ? _lhD("Li8=") : _lhD("c3RhZmYuaHRtbA=="));
 async function boot() {
+if ((matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) && window.self === window.top && !isNativeApp() && !/[?&]staff=1/.test(location.search)) {
+location.replace(_lhD("L21vYmlsZQ=="));
+return;
+}
 root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();
 if (!session.token) {

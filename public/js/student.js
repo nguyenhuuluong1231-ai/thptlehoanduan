@@ -1,9 +1,9 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkqq6wf';
-import { icon, drumArt, moodFace } from './core/icons.js?v=mvkqq6wf';
-import { openCamera } from './core/camera.js?v=mvkqq6wf';
+import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkrb363';
+import { icon, drumArt, moodFace } from './core/icons.js?v=mvkrb363';
+import { openCamera } from './core/camera.js?v=mvkrb363';
 import { $, $$, esc, toast, modal, confirmDialog, drawer, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, gauge, cover, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkqq6wf';
+fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkrb363';
 setPortal(_lhD("c3R1ZGVudA=="));
 initTheme(); initDevToolsGuard();
 const S = { user: null, settings: null, unread: 0, badges: null, cleanups: [] };
@@ -40,7 +40,7 @@ const ROOT_TABS = [_lhD("aG9tZQ=="), _lhD("aW5ib3g="), _lhD("cmVwb3J0"), _lhD("Y
 const CHAT_PAGES = [_lhD("aW5ib3g="), _lhD("c2Nob29sLWNoYXQ="), _lhD("dGVhY2hlci1jaGF0"), _lhD("Y291bnNlbGluZw==")];
 const enabled = (it) => !it.module || S.settings?.modules?.[it.module] !== false;
 const go = (page) => { if (location.hash !== _lhD("Iw==") + page) location.hash = page; else render(); };
-const studentLoginUrl = () => (window.self !== window.top || isNativeApp() || getMode() !== _lhD("c2VydmVy") ? _lhD("Li8=") : _lhD("L2xvZ2luaG9jaW5o"));
+const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) ? _lhD("aW5kZXguaHRtbD9tb2JpbGU9MQ==") : (isNativeApp() || getMode() !== _lhD("c2VydmVy") ? _lhD("Li8=") : _lhD("L2xvZ2luaG9jaW5o")));
 async function boot() {
 root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();

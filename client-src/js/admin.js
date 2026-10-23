@@ -88,6 +88,10 @@ const staffLoginUrl = () => (window.self !== window.top || isNativeApp() ? './' 
 
 // ---------------------------------------------------------------------------
 async function boot() {
+  if ((matchMedia('(max-width: 760px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) && window.self === window.top && !isNativeApp() && !/[?&]staff=1/.test(location.search)) {
+    location.replace('/mobile');
+    return;
+  }
   root.innerHTML = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center"><img src="assets/school_logo.png" alt="Trường THPT Lê Hoàn" style="width:96px;height:96px;object-fit:contain;border-radius:50%;background:#fff;padding:6px;box-shadow:0 12px 32px rgba(23,71,201,.28)"><div style="font-weight:700;font-size:16px">Trường THPT Lê Hoàn</div><div class="skel" style="width:180px;height:8px;border-radius:99px"></div></div>';
   await detect();
   if (!session.token) {

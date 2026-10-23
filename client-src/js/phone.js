@@ -5,8 +5,7 @@ import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './
 import { qrSvg } from './core/qr.js';
 
 initTheme(); initDevToolsGuard();
-// Đang mở trên điện thoại thật: vào thẳng app, không cần khung
-if (matchMedia('(max-width: 640px)').matches && !/[?&]frame/.test(location.search)) location.replace('./');
+const IS_REAL_PHONE = (matchMedia('(max-width: 760px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) && !/[?&]frame/.test(location.search);
 
 const DEVICES = {
   pixel: { name: 'Pixel 8', w: 412, h: 915 },
@@ -29,6 +28,10 @@ const svg = {
 };
 
 async function boot() {
+  if (IS_REAL_PHONE) {
+    render();
+    return;
+  }
   await detect();
   try { lan = (await api.get('api/server-info')).lan || []; } catch { lan = []; }
   render();
@@ -44,21 +47,21 @@ function hasActiveSession(p) {
 function getInitialSrc() {
   const cur = $('#fr')?.contentWindow?.location;
   if (cur?.pathname) {
-    const file = cur.pathname.split('/').pop() || './';
-    return (file === 'index.html' ? './' : file) + (cur.hash || '');
+    const file = cur.pathname.split('/').pop() || 'index.html';
+    return `${file === './' ? 'index.html' : file}?mobile=1${cur.hash || ''}`;
   }
-  const saved = (() => { try { return sessionStorage.getItem('lh_phone_src') || store.get('lh_phone_src') || ''; } catch { return store.get('lh_phone_src') || ''; } })();
-  if (saved.startsWith('app.html') && hasActiveSession('student')) return saved;
-  if (saved.startsWith('admin.html') && hasActiveSession('staff')) return saved;
-  if (hasActiveSession('student')) return 'app.html';
-  if (hasActiveSession('staff')) return 'admin.html';
-  return './';
+  if (hasActiveSession('student')) return 'app.html?mobile=1';
+  return 'index.html?mobile=1';
 }
 
 function render() {
+  const startSrc = getInitialSrc();
+  if (IS_REAL_PHONE) {
+    $('#root').innerHTML = `<iframe id="fr" title="App điện thoại THPT Lê Hoàn" src="${esc(startSrc)}" style="position:fixed;inset:0;width:100%;height:100%;border:0;background:var(--bg)" allow="camera; geolocation; clipboard-write; fullscreen"></iframe>`;
+    return;
+  }
   const d = DEVICES[dev];
   const navH = nav === 'buttons' ? 48 : 22;
-  const startSrc = getInitialSrc();
   $('#root').innerHTML = `
   <div class="pp">
     <header class="pp-top">

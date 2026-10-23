@@ -1,13 +1,16 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvkqq6wf';
-import { icon, drumArt } from './core/icons.js?v=mvkqq6wf';
-import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvkqq6wf';
+import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvkrb363';
+import { icon, drumArt } from './core/icons.js?v=mvkrb363';
+import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvkrb363';
 initTheme(); initDevToolsGuard();
 const root = $(_lhD("I3Jvb3Q="));
 const urlPortal = new URLSearchParams(location.search).get(_lhD("cG9ydGFs"));
 const portal = (document.body.dataset.portal === _lhD("c3RhZmY=") || document.body.dataset.portal === _lhD("YWRtaW4=") || urlPortal === _lhD("c3RhZmY=") || urlPortal === _lhD("YWRtaW4=")) ? _lhD("c3RhZmY=") : _lhD("c3R1ZGVudA==");
 const STAFF = portal === _lhD("c3RhZmY=");
 const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+if (IS_MOBILE && window.self === window.top && !isNativeApp() && !STAFF && !/\/mobile\/?$/i.test(location.pathname)) {
+location.replace(_lhD("L21vYmlsZQ=="));
+}
 setPortal(portal);
 document.title = IS_MOBILE
 ? _lhD("xJDEg25nIG5o4bqtcCDCtyBD4buVbmcgSOG7jWMgxJDGsOG7nW5nIFPhu5EgVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6Bu")
@@ -17,12 +20,15 @@ async function boot() {
 root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();
 if (IS_MOBILE && !/[?&]switch=1/.test(location.search)) {
-for (const p of (STAFF ? [_lhD("c3RhZmY="), _lhD("c3R1ZGVudA==")] : [_lhD("c3R1ZGVudA=="), _lhD("c3RhZmY=")])) {
+for (const p of (STAFF ? [_lhD("c3RhZmY=")] : [_lhD("c3R1ZGVudA==")])) {
 setPortal(p);
 if (!session.token) continue;
 try {
 const { user } = await api.get(_lhD("YXBpL2F1dGgvbWU="));
-if (user) { go(user.role === _lhD("c3R1ZGVudA==") ? _lhD("c3R1ZGVudA==") : _lhD("c3RhZmY=")); return; }
+if (user && ((STAFF && user.role !== _lhD("c3R1ZGVudA==")) || (!STAFF && user.role === _lhD("c3R1ZGVudA==")))) {
+go(user.role === _lhD("c3R1ZGVudA==") ? _lhD("c3R1ZGVudA==") : _lhD("c3RhZmY="));
+return;
+}
 } catch {  }
 }
 setPortal(portal);
@@ -71,7 +77,7 @@ bind();
 showContinue();
 }
 async function showContinue() {
-const list = IS_MOBILE ? (STAFF ? [_lhD("c3RhZmY="), _lhD("c3R1ZGVudA==")] : [_lhD("c3R1ZGVudA=="), _lhD("c3RhZmY=")]) : [portal];
+const list = [portal];
 for (const p of list) {
 setPortal(p);
 if (!session.token) continue;
@@ -111,7 +117,14 @@ await sleep(400); location.reload();
 });
 } });
 }
-function go(p) { location.href = p === _lhD("c3R1ZGVudA==") ? _lhD("YXBwLmh0bWw=") : _lhD("YWRtaW4uaHRtbA=="); }
+function go(p) {
+if (p === _lhD("c3RhZmY=")) {
+location.href = _lhD("YWRtaW4uaHRtbD9zdGFmZj0x") + (IS_MOBILE ? _lhD("Jm1vYmlsZT0x") : '');
+return;
+}
+const q = IS_MOBILE ? _lhD("P21vYmlsZT0x") : '';
+location.href = _lhD("YXBwLmh0bWw=") + q;
+}
 function bind() {
 $(_lhD("I3RoZW1l")).onclick = () => toggleTheme();
 if ($(_lhD("I3Nydg=="))) $(_lhD("I3Nydg==")).onclick = serverDialog;

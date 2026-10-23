@@ -47,7 +47,7 @@ const CHAT_PAGES = ['inbox', 'school-chat', 'teacher-chat', 'counseling'];
 const enabled = (it) => !it.module || S.settings?.modules?.[it.module] !== false;
 const go = (page) => { if (location.hash !== '#' + page) location.hash = page; else render(); };
 
-const studentLoginUrl = () => (window.self !== window.top || isNativeApp() || getMode() !== 'server' ? './' : '/loginhocinh');
+const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) ? 'index.html?mobile=1' : (isNativeApp() || getMode() !== 'server' ? './' : '/loginhocinh'));
 
 // ---------------------------------------------------------------------------
 async function boot() {
