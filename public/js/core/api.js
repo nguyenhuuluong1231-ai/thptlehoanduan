@@ -191,9 +191,11 @@ return (await request(_lhD("UE9TVA=="), _lhD("YXBpL3VwbG9hZHM="), { name, type: 
 },
 async download(p, fallbackName = _lhD("ZHUtbGlldS54bHN4")) {
 const out = await request(_lhD("R0VU"), p);
-if (mode === _lhD("ZGVtbw==")) { toast(_lhD("QuG6o24geGVtIHRyxrDhu5tjIGtow7RuZyBjaG8gdOG6o2kgdOG7h3AuIEjDo3kgY2jhuqF5IGThu7Egw6FuIGLhurFuZyBOb2RlLmpzIMSR4buDIHh14bqldCBFeGNlbC4="), _lhD("d2Fybg=="), 5000); return false; }
+const blob = out?.blob || (out?.body ? new Blob([out.body], { type: out?.headers?.[_lhD("Y29udGVudC10eXBl")] || _lhD("YXBwbGljYXRpb24vb2N0ZXQtc3RyZWFt") }) : null);
+if (!blob) { toast(_lhD("S2jDtG5nIHRo4buDIHThuqFvIHThu4dwIHThuqNpIHbhu4Eu"), _lhD("d2Fybg=="), 5000); return false; }
+const fn = out.filename || decodeURIComponent((/filename\*=UTF-8''([^;]+)/.exec(out?.headers?.[_lhD("Y29udGVudC1kaXNwb3NpdGlvbg==")] || '') || [])[1] || '') || fallbackName;
 const a = document.createElement(_lhD("YQ=="));
-a.href = URL.createObjectURL(out.blob); a.download = out.filename || fallbackName;
+a.href = URL.createObjectURL(blob); a.download = fn;
 document.body.appendChild(a); a.click(); a.remove();
 setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 toast(`${_lhD("xJDDoyB4deG6pXQg")}${a.download}`, _lhD("b2s="));

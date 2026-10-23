@@ -2,22 +2,47 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # Chặn truy cập trực tiếp vào thư mục dữ liệu nội bộ và tệp cấu hình máy chủ
-  RewriteRule ^(data|server\.js|app\.cjs|package\.json|render\.yaml|Dockerfile)(/|$) - [F,L,NC]
+  # Chặn truy cập trực tiếp vào các tệp dữ liệu nhạy cảm và cấu hình máy chủ
+  RewriteRule ^data/.*\.(json|key|tmp.*)$ - [F,L,NC]
+  RewriteRule ^(server\.js|app\.cjs|package\.json|package-lock\.json|render\.yaml|Dockerfile)(/|$) - [F,L,NC]
 
-  # Nếu tệp hoặc thư mục thực tế tồn tại thì phục vụ trực tiếp
+  # Phục vụ ảnh đại diện, ảnh chứng chỉ và tệp đính kèm trong data/uploads/
+  RewriteRule ^uploads/([a-zA-Z0-9_.\-]+)$ data/uploads/$1 [L,NC]
+
+  # Nếu tệp hoặc thư mục thực tế tồn tại ở gốc thì phục vụ trực tiếp
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Đường dẫn thân thiện cho các cổng
-  RewriteRule ^(login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ index.html [L,NC]
-  RewriteRule ^(app|hoc-sinh|desktop\.html)/?$ app.html [L,NC]
+  # Đường dẫn thân thiện cho các cổng (hỗ trợ cả khi tệp ở gốc hoặc nằm trong thư mục public/)
+  RewriteCond %{DOCUMENT_ROOT}/staff.html -f
   RewriteRule ^(quan-tri|admin-login|loginadmin|login-admin|dang-nhap-admin|dang-nhap-quan-tri|dang-nhap-giao-vien|logingiaovien|staff)/?$ staff.html [L,NC]
+  RewriteRule ^(quan-tri|admin-login|loginadmin|login-admin|dang-nhap-admin|dang-nhap-quan-tri|dang-nhap-giao-vien|logingiaovien|staff)/?$ public/staff.html [L,NC]
+
+  RewriteCond %{DOCUMENT_ROOT}/index.html -f
+  RewriteRule ^(login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ index.html [L,NC]
+  RewriteRule ^(login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ public/index.html [L,NC]
+
+  RewriteCond %{DOCUMENT_ROOT}/app.html -f
+  RewriteRule ^(app|hoc-sinh|desktop\.html)/?$ app.html [L,NC]
+  RewriteRule ^(app|hoc-sinh|desktop\.html)/?$ public/app.html [L,NC]
+
+  RewriteCond %{DOCUMENT_ROOT}/admin.html -f
   RewriteRule ^(admin|quan-tri-vien|giao-vien|teacher)/?$ admin.html [L,NC]
+  RewriteRule ^(admin|quan-tri-vien|giao-vien|teacher)/?$ public/admin.html [L,NC]
+
+  RewriteCond %{DOCUMENT_ROOT}/phone.html -f
   RewriteRule ^(mobile|phone|app-dien-thoai|dien-thoai)/?$ phone.html [L,NC]
+  RewriteRule ^(mobile|phone|app-dien-thoai|dien-thoai)/?$ public/phone.html [L,NC]
+
+  RewriteCond %{DOCUMENT_ROOT}/docs.html -f
   RewriteRule ^(docs|api-docs)/?$ docs.html [L,NC]
+  RewriteRule ^(docs|api-docs)/?$ public/docs.html [L,NC]
+
+  # Nếu tệp tồn tại trong thư mục public/ (khi clone trực tiếp từ GitHub)
+  RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
+  RewriteRule ^(.+)$ public/$1 [L]
 </IfModule>
 
-DirectoryIndex index.html
-ErrorDocument 404 /404.html
+DirectoryIndex index.html public/index.html
+ErrorDocument 404 /index.html

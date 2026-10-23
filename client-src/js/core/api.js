@@ -217,9 +217,11 @@ export const api = {
   /** Tải tệp (Excel…) */
   async download(p, fallbackName = 'du-lieu.xlsx') {
     const out = await request('GET', p);
-    if (mode === 'demo') { toast('Bản xem trước không cho tải tệp. Hãy chạy dự án bằng Node.js để xuất Excel.', 'warn', 5000); return false; }
+    const blob = out?.blob || (out?.body ? new Blob([out.body], { type: out?.headers?.['content-type'] || 'application/octet-stream' }) : null);
+    if (!blob) { toast('Không thể tạo tệp tải về.', 'warn', 5000); return false; }
+    const fn = out.filename || decodeURIComponent((/filename\*=UTF-8''([^;]+)/.exec(out?.headers?.['content-disposition'] || '') || [])[1] || '') || fallbackName;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(out.blob); a.download = out.filename || fallbackName;
+    a.href = URL.createObjectURL(blob); a.download = fn;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     toast(`Đã xuất ${a.download}`, 'ok');

@@ -5,6 +5,7 @@ node_modules/
 *.corrupt-*
 .DS_Store
 lehoan-portal-cpanel.zip
+data/db-live.json
 _tmp_*
 cloudflared.exe
 tools/gen-accounts/output/
