@@ -1,6 +1,6 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { icon } from './icons.js?v=mvkpzoy3';
-import { qrSvg } from './qr.js?v=mvkpzoy3';
+import { icon } from './icons.js?v=mvkq4erg';
+import { qrSvg } from './qr.js?v=mvkq4erg';
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': _lhD("JmFtcDs="), '<': _lhD("Jmx0Ow=="), '>': _lhD("Jmd0Ow=="), '"': _lhD("JnF1b3Q7"), "'": _lhD("JiMzOTs=") }[c]));

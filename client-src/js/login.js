@@ -10,7 +10,7 @@ const root = $('#root');
 const urlPortal = new URLSearchParams(location.search).get('portal');
 const portal = (document.body.dataset.portal === 'staff' || document.body.dataset.portal === 'admin' || urlPortal === 'staff' || urlPortal === 'admin') ? 'staff' : 'student';
 const STAFF = portal === 'staff';
-const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search);
+const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia('(max-width: 760px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 setPortal(portal);
 document.title = IS_MOBILE
   ? 'Đăng nhập · Cổng Học Đường Số Trường THPT Lê Hoàn'

@@ -1,5 +1,5 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js?v=mvkpzoy3';
+import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js?v=mvkq4erg';
 if (typeof window !== _lhD("dW5kZWZpbmVk")) {
 if (!window.process) window.process = { env: {} };
 if (location.protocol === _lhD("aHR0cDo=") && ![_lhD("bG9jYWxob3N0"), _lhD("MTI3LjAuMC4x")].includes(location.hostname)) {
@@ -12,7 +12,7 @@ const tokenKey = () => `${_lhD("bGhfdG9rZW5f")}${portal}`;
 const activeKey = (p = portal) => `${_lhD("bGhfYWN0aXZlXw==")}${p}`;
 const noIdleKey = (p = portal) => `${_lhD("bGhfbm9faWRsZV8=")}${p}`;
 export const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
-export const isAppEnv = () => typeof window !== _lhD("dW5kZWZpbmVk") && (window.self !== window.top || !!window.Capacitor || window.matchMedia?.(_lhD("KGRpc3BsYXktbW9kZTogc3RhbmRhbG9uZSk=")).matches || !!navigator.standalone || /[?&]mobile/.test(location.search));
+export const isAppEnv = () => typeof window !== _lhD("dW5kZWZpbmVk") && (window.self !== window.top || !!window.Capacitor || window.matchMedia?.(_lhD("KGRpc3BsYXktbW9kZTogc3RhbmRhbG9uZSk=")).matches || window.matchMedia?.(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || !!navigator.standalone || /[?&]mobile/.test(location.search));
 export const isAppSession = (p = portal) => isAppEnv() || !!store.get(noIdleKey(p));
 let lastTouch = 0, lastServerTouch = 0;
 export const apiUrl = (p) => { const u = p.startsWith(_lhD("Lw==")) ? p.slice(1) : p; return apiBase() ? `${apiBase()}${_lhD("Lw==")}${u}` : u; };

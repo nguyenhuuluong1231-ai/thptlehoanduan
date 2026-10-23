@@ -1,13 +1,13 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvkpzoy3';
-import { icon, drumArt } from './core/icons.js?v=mvkpzoy3';
-import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvkpzoy3';
+import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvkq4erg';
+import { icon, drumArt } from './core/icons.js?v=mvkq4erg';
+import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvkq4erg';
 initTheme(); initDevToolsGuard();
 const root = $(_lhD("I3Jvb3Q="));
 const urlPortal = new URLSearchParams(location.search).get(_lhD("cG9ydGFs"));
 const portal = (document.body.dataset.portal === _lhD("c3RhZmY=") || document.body.dataset.portal === _lhD("YWRtaW4=") || urlPortal === _lhD("c3RhZmY=") || urlPortal === _lhD("YWRtaW4=")) ? _lhD("c3RhZmY=") : _lhD("c3R1ZGVudA==");
 const STAFF = portal === _lhD("c3RhZmY=");
-const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search);
+const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 setPortal(portal);
 document.title = IS_MOBILE
 ? _lhD("xJDEg25nIG5o4bqtcCDCtyBD4buVbmcgSOG7jWMgxJDGsOG7nW5nIFPhu5EgVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6Bu")

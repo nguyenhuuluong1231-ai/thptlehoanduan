@@ -15,7 +15,7 @@ const tokenKey = () => `lh_token_${portal}`;
 const activeKey = (p = portal) => `lh_active_${p}`;
 const noIdleKey = (p = portal) => `lh_no_idle_${p}`;
 export const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // Tự động đăng xuất sau 5 phút không hoạt động (chỉ áp dụng bản web máy tính)
-export const isAppEnv = () => typeof window !== 'undefined' && (window.self !== window.top || !!window.Capacitor || window.matchMedia?.('(display-mode: standalone)').matches || !!navigator.standalone || /[?&]mobile/.test(location.search));
+export const isAppEnv = () => typeof window !== 'undefined' && (window.self !== window.top || !!window.Capacitor || window.matchMedia?.('(display-mode: standalone)').matches || window.matchMedia?.('(max-width: 760px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || !!navigator.standalone || /[?&]mobile/.test(location.search));
 export const isAppSession = (p = portal) => isAppEnv() || !!store.get(noIdleKey(p));
 let lastTouch = 0, lastServerTouch = 0;
 

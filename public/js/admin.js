@@ -1,8 +1,8 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkpzoy3';
-import { icon, drumArt } from './core/icons.js?v=mvkpzoy3';
+import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkq4erg';
+import { icon, drumArt } from './core/icons.js?v=mvkq4erg';
 import { $, $$, esc, toast, modal, confirmDialog, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, donut, gauge, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkpzoy3';
+fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkq4erg';
 const aiOfflineNote = (ai) => getMode() === _lhD("ZGVtbw==") && !ai?.enabled && isNativeApp() ? `${_lhD("PGRpdiBjbGFzcz0iY2FyZCBzb2Z0IHNtYWxsIHJvdyBub3dyYXAiIHN0eWxlPSJwYWRkaW5nOjEwcHggMTRweDtnYXA6OHB4Ij4=")}${icon(_lhD("aW5mbw=="))}${_lhD("PHNwYW4+QXBwIMSRYW5nIOG7nyA8Yj5i4bqjbiB0cuG6o2kgbmdoaeG7h208L2I+IG7Dqm4gZMO5bmcgY2jhur8gxJHhu5kgY8ahIGLhuqNuLiDEkMSDbmcgeHXhuqV0IOKGkiA8Yj5Nw6F5IGNo4bunIHRyxrDhu51uZzwvYj4g4oaSIG5o4bqtcCDEkeG7i2EgY2jhu4kgbcOheSBjaOG7pyDEkeG7gyBkw7luZyBBSSBj4bunYSBuaMOgIHRyxrDhu51uZy48L3NwYW4+PC9kaXY+")}` : '';
 const aiPill = (ai) => ai?.enabled ? `${_lhD("PHNwYW4gY2xhc3M9ImJhZGdlIHZpb2xldCIgdGl0bGU9Ig==")}${esc(ai.label || '')}${_lhD("Ij4=")}${icon(_lhD("c3BhcmtsZXM="))}${_lhD("IEFJIHRo4bqtdCDEkWFuZyBi4bqtdDwvc3Bhbj4=")}` : _lhD("PHNwYW4gY2xhc3M9ImJhZGdlIiB0aXRsZT0iVGjDqm0ga2jDs2EgQVBJIHRyb25nIC5lbnYgxJHhu4MgYuG6rXQgQUkiPkLhu5kgbHXhuq10IMK3IGNoxrBhIGLhuq10IEFJPC9zcGFuPg==");
 function autoGrow(ta, onEnter) {

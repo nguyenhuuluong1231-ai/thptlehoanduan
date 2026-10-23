@@ -21,14 +21,13 @@ execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obfuscate.mjs')], { 
 
 const ver = 'v=' + Date.now().toString(36);
 const pubDir = path.join(ROOT, 'public');
-const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);</script>';
+const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.update()));</script><style>.demo-ribbon{display:none!important}</style>';
 for (const f of fs.readdirSync(pubDir)) {
   if (!f.endsWith('.html')) continue;
   const p = path.join(pubDir, f);
   let html = fs.readFileSync(p, 'utf8');
-  if (!html.includes('window.process=window.process')) {
-    html = html.replace('<head>', '<head>\n  ' + inlineFix);
-  }
+  html = html.replace(/<script>window\.process=window\.process[\s\S]*?<\/script>(?:<style>\.demo-ribbon\{display:none!important\}<\/style>)?\s*/g, '');
+  html = html.replace('<head>', '<head>\n  ' + inlineFix);
   html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
   html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
   fs.writeFileSync(p, html, 'utf8');
