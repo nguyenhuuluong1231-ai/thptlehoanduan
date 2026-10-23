@@ -1,8 +1,8 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, detect, getMode } from './core/api.js?v=mvkrdvxo';
-import { icon } from './core/icons.js?v=mvkrdvxo';
-import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './core/ui.js?v=mvkrdvxo';
-import { qrSvg } from './core/qr.js?v=mvkrdvxo';
+import { api, detect, getMode } from './core/api.js?v=mvks82ho';
+import { icon } from './core/icons.js?v=mvks82ho';
+import { $, $$, esc, store, initTheme, initDevToolsGuard, toggleTheme } from './core/ui.js?v=mvks82ho';
+import { qrSvg } from './core/qr.js?v=mvks82ho';
 initTheme(); initDevToolsGuard();
 const IS_REAL_PHONE = (matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) && !/[?&]frame/.test(location.search);
 const DEVICES = {
@@ -44,7 +44,11 @@ if (cur?.pathname) {
 const file = cur.pathname.split(_lhD("Lw==")).pop() || _lhD("aW5kZXguaHRtbA==");
 return `${file === _lhD("Li8=") ? _lhD("aW5kZXguaHRtbA==") : file}${_lhD("P21vYmlsZT0x")}${cur.hash || ''}`;
 }
+const saved = (() => { try { return sessionStorage.getItem(_lhD("bGhfcGhvbmVfc3Jj")) || store.get(_lhD("bGhfcGhvbmVfc3Jj")) || ''; } catch { return store.get(_lhD("bGhfcGhvbmVfc3Jj")) || ''; } })();
+if (saved.startsWith(_lhD("YXBwLmh0bWw=")) && hasActiveSession(_lhD("c3R1ZGVudA=="))) return _lhD("YXBwLmh0bWw/bW9iaWxlPTE=");
+if (saved.startsWith(_lhD("YWRtaW4uaHRtbA==")) && hasActiveSession(_lhD("c3RhZmY="))) return _lhD("YWRtaW4uaHRtbD9tb2JpbGU9MQ==");
 if (hasActiveSession(_lhD("c3R1ZGVudA=="))) return _lhD("YXBwLmh0bWw/bW9iaWxlPTE=");
+if (hasActiveSession(_lhD("c3RhZmY="))) return _lhD("YWRtaW4uaHRtbD9tb2JpbGU9MQ==");
 return _lhD("aW5kZXguaHRtbD9tb2JpbGU9MQ==");
 }
 function render() {

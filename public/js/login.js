@@ -1,7 +1,7 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvkrdvxo';
-import { icon, drumArt } from './core/icons.js?v=mvkrdvxo';
-import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvkrdvxo';
+import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js?v=mvks82ho';
+import { icon, drumArt } from './core/icons.js?v=mvks82ho';
+import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js?v=mvks82ho';
 initTheme(); initDevToolsGuard();
 const root = $(_lhD("I3Jvb3Q="));
 const urlPortal = new URLSearchParams(location.search).get(_lhD("cG9ydGFs"));
@@ -20,15 +20,12 @@ async function boot() {
 root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();
 if (IS_MOBILE && !/[?&]switch=1/.test(location.search)) {
-for (const p of (STAFF ? [_lhD("c3RhZmY=")] : [_lhD("c3R1ZGVudA==")])) {
+for (const p of (STAFF ? [_lhD("c3RhZmY="), _lhD("c3R1ZGVudA==")] : [_lhD("c3R1ZGVudA=="), _lhD("c3RhZmY=")])) {
 setPortal(p);
 if (!session.token) continue;
 try {
 const { user } = await api.get(_lhD("YXBpL2F1dGgvbWU="));
-if (user && ((STAFF && user.role !== _lhD("c3R1ZGVudA==")) || (!STAFF && user.role === _lhD("c3R1ZGVudA==")))) {
-go(user.role === _lhD("c3R1ZGVudA==") ? _lhD("c3R1ZGVudA==") : _lhD("c3RhZmY="));
-return;
-}
+if (user) { go(user.role === _lhD("c3R1ZGVudA==") ? _lhD("c3R1ZGVudA==") : _lhD("c3RhZmY=")); return; }
 } catch {  }
 }
 setPortal(portal);

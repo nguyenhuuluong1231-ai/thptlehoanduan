@@ -1,9 +1,9 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvkrdvxo';
-import { icon, drumArt, moodFace } from './core/icons.js?v=mvkrdvxo';
-import { openCamera } from './core/camera.js?v=mvkrdvxo';
+import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js?v=mvks82ho';
+import { icon, drumArt, moodFace } from './core/icons.js?v=mvks82ho';
+import { openCamera } from './core/camera.js?v=mvks82ho';
 import { $, $$, esc, toast, modal, confirmDialog, drawer, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, gauge, cover, md, store,
-fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvkrdvxo';
+fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js?v=mvks82ho';
 setPortal(_lhD("c3R1ZGVudA=="));
 initTheme(); initDevToolsGuard();
 const S = { user: null, settings: null, unread: 0, badges: null, cleanups: [] };

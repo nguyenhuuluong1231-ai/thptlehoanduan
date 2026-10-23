@@ -9,8 +9,7 @@
   # Khi truy cập trang chủ bằng điện thoại -> tự động chuyển sang /mobile
   RewriteCond %{HTTP_USER_AGENT} "iPhone|iPod|iPad|Android|Mobile" [NC]
   RewriteCond %{QUERY_STRING} !mobile=1 [NC]
-  RewriteCond %{QUERY_STRING} !staff=1 [NC]
-  RewriteRule ^(|index\.html|admin\.html|login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ /mobile [L,R=302,NC]
+  RewriteRule ^(|index\.html|login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ /mobile [L,R=302,NC]
 
   # Chặn truy cập trực tiếp vào các tệp dữ liệu nhạy cảm và cấu hình máy chủ
   RewriteRule ^data/.*\.(json|key|tmp.*)$ - [F,L,NC]

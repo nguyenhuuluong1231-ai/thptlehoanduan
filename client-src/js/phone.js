@@ -50,7 +50,11 @@ function getInitialSrc() {
     const file = cur.pathname.split('/').pop() || 'index.html';
     return `${file === './' ? 'index.html' : file}?mobile=1${cur.hash || ''}`;
   }
+  const saved = (() => { try { return sessionStorage.getItem('lh_phone_src') || store.get('lh_phone_src') || ''; } catch { return store.get('lh_phone_src') || ''; } })();
+  if (saved.startsWith('app.html') && hasActiveSession('student')) return 'app.html?mobile=1';
+  if (saved.startsWith('admin.html') && hasActiveSession('staff')) return 'admin.html?mobile=1';
   if (hasActiveSession('student')) return 'app.html?mobile=1';
+  if (hasActiveSession('staff')) return 'admin.html?mobile=1';
   return 'index.html?mobile=1';
 }
 
