@@ -6,6 +6,7 @@ import { migrateData } from '../../shared/migrate.js';
 import { toast, apiBase } from './ui.js';
 import { argon2idRaw } from '../../shared/crypto/argon2.js';
 import { createPasswordHasher, DEMO_PARAMS } from '../../shared/crypto/password.js';
+import { createLlm } from '../../shared/ai/providers.js';
 if (typeof window !== _lhD("dW5kZWZpbmVk") && !window.process) window.process = { env: {} };
 const DB_KEY = _lhD("bGhfZGVtb19kYl92Mg=="), SECRET_KEY = _lhD("bGhfZGVtb19zZWNyZXQ=");
 const enc = new TextEncoder();
@@ -72,8 +73,15 @@ const j = await r.json().catch(() => null);
 if (!r.ok || !j?.ok) throw new HttpError(r.status || 500, j?.error || _lhD("S2jDtG5nIHRo4buDIHThuqNpIHThu4dwIGzDqm4gbcOheSBjaOG7py4="));
 return { url: j.url, size: j.size };
 }
+function makeLlm(c = {}) {
+if (!c.provider || c.provider === _lhD("b2Zm")) return null;
+return createLlm({ AI_PROVIDER: c.provider === _lhD("Y3VzdG9t") ? _lhD("b3BlbmFp") : c.provider, AI_API_KEY: c.apiKey || '', AI_MODEL: c.model || '', AI_BASE_URL: c.baseUrl || '' });
+}
 const api = buildApi();
-const ctx = { db, crypto: cryptoProvider, emit, mode: _lhD("ZGVtbw=="), llm: null, reseed: () => db.reseed(),
+const ctx = { db, crypto: cryptoProvider, emit, mode: _lhD("ZGVtbw=="), llm: null, makeLlm,
+reloadLlm() { const c = db.data?.aiConfig; this.llm = (c?.provider && c.provider !== _lhD("b2Zm")) ? makeLlm(c) : null; return this.llm; },
+lanUrls: () => (typeof location !== _lhD("dW5kZWZpbmVk") ? [location.origin] : []),
+reseed: () => db.reseed(),
 async storeUpload({ name, type, data }) {
 if (remoteSync) return uploadToRemote({ name, type, data });
 const size = Math.round((data.length - data.indexOf(_lhD("LA==")) - 1) * 0.75);
@@ -131,9 +139,11 @@ const j = await r.json();
 if (j?.secret) { SECRET = j.secret; keyCache.clear(); ls.set(SECRET_KEY, SECRET); }
 if (j?.ok && j?.data?.users) {
 remoteSync = true;
+ctx.mode = _lhD("c2VydmVy");
 remoteMtime = j.mtime || 0;
 db.data = j.data;
 if (migrateData(db.data)) await db.flush();
+ctx.reloadLlm();
 startPolling();
 return;
 }
@@ -150,4 +160,5 @@ const out = await api.handle(req, ctx);
 if (out.raw) return out;
 return { status: out.status, body: out.body === undefined ? undefined : JSON.parse(JSON.stringify(out.body)), rotatedToken: out.rotatedToken };
 }
+export const isRemote = () => remoteSync;
 export function subscribe(cb, getToken) { tokenGetter = getToken; listeners.push(cb); }

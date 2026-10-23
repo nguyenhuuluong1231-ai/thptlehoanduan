@@ -96,7 +96,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function setPortal(p) { portal = p; }
-export const getMode = () => mode;
+export const getMode = () => (mode === 'demo' && demo?.isRemote?.()) ? 'server' : mode;
 
 export async function detect() {
   if (mode) return mode;

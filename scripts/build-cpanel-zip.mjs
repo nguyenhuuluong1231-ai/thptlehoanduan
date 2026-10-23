@@ -28,8 +28,8 @@ for (const f of fs.readdirSync(pubDir)) {
   if (!html.includes('window.process=window.process')) {
     html = html.replace('<head>', '<head>\n  ' + inlineFix);
   }
-  html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, '$1?v=20261023c$2');
-  html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, '$1?v=20261023c$2');
+  html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, '$1?v=20261023d$2');
+  html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, '$1?v=20261023d$2');
   fs.writeFileSync(p, html, 'utf8');
 }
 

@@ -8,6 +8,7 @@ import { migrateData } from '../../shared/migrate.js';
 import { toast, apiBase } from './ui.js';
 import { argon2idRaw } from '../../shared/crypto/argon2.js';
 import { createPasswordHasher, DEMO_PARAMS } from '../../shared/crypto/password.js';
+import { createLlm } from '../../shared/ai/providers.js';
 
 if (typeof window !== 'undefined' && !window.process) window.process = { env: {} };
 
@@ -84,8 +85,16 @@ async function uploadToRemote({ name, type, data }) {
   return { url: j.url, size: j.size };
 }
 
+function makeLlm(c = {}) {
+  if (!c.provider || c.provider === 'off') return null;
+  return createLlm({ AI_PROVIDER: c.provider === 'custom' ? 'openai' : c.provider, AI_API_KEY: c.apiKey || '', AI_MODEL: c.model || '', AI_BASE_URL: c.baseUrl || '' });
+}
+
 const api = buildApi();
-const ctx = { db, crypto: cryptoProvider, emit, mode: 'demo', llm: null, reseed: () => db.reseed(),
+const ctx = { db, crypto: cryptoProvider, emit, mode: 'demo', llm: null, makeLlm,
+  reloadLlm() { const c = db.data?.aiConfig; this.llm = (c?.provider && c.provider !== 'off') ? makeLlm(c) : null; return this.llm; },
+  lanUrls: () => (typeof location !== 'undefined' ? [location.origin] : []),
+  reseed: () => db.reseed(),
   async storeUpload({ name, type, data }) {
     if (remoteSync) return uploadToRemote({ name, type, data });
     const size = Math.round((data.length - data.indexOf(',') - 1) * 0.75);
@@ -147,9 +156,11 @@ export async function init() {
       if (j?.secret) { SECRET = j.secret; keyCache.clear(); ls.set(SECRET_KEY, SECRET); }
       if (j?.ok && j?.data?.users) {
         remoteSync = true;
+        ctx.mode = 'server';
         remoteMtime = j.mtime || 0;
         db.data = j.data;
         if (migrateData(db.data)) await db.flush();
+        ctx.reloadLlm();
         startPolling();
         return;
       }
@@ -168,4 +179,5 @@ export async function handle(req) {
   return { status: out.status, body: out.body === undefined ? undefined : JSON.parse(JSON.stringify(out.body)), rotatedToken: out.rotatedToken };
 }
 
+export const isRemote = () => remoteSync;
 export function subscribe(cb, getToken) { tokenGetter = getToken; listeners.push(cb); }

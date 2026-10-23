@@ -86,7 +86,7 @@ window.dispatchEvent(new CustomEvent(_lhD("YXV0aDpleHBpcmVk"), { detail: { idle:
 }, 5000);
 }
 export function setPortal(p) { portal = p; }
-export const getMode = () => mode;
+export const getMode = () => (mode === _lhD("ZGVtbw==") && demo?.isRemote?.()) ? _lhD("c2VydmVy") : mode;
 export async function detect() {
 if (mode) return mode;
 try {
