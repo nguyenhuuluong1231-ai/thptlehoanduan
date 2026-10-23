@@ -16,8 +16,22 @@ const DB_LIVE_FILE = path.join(DATA_DIR, 'db-live.json');
 const STAGE_DIR = path.join(ROOT, '_tmp_cpanel_stage');
 const ZIP_OUT = path.join(ROOT, 'lehoan-portal-cpanel.zip');
 
-// 1. Làm rối lại client-src/js -> public/js
+// 1. Làm rối lại client-src/js -> public/js & gắn mã chống cache trình duyệt
 execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obfuscate.mjs')], { cwd: ROOT, stdio: 'inherit' });
+
+const pubDir = path.join(ROOT, 'public');
+const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);</script>';
+for (const f of fs.readdirSync(pubDir)) {
+  if (!f.endsWith('.html')) continue;
+  const p = path.join(pubDir, f);
+  let html = fs.readFileSync(p, 'utf8');
+  if (!html.includes('window.process=window.process')) {
+    html = html.replace('<head>', '<head>\n  ' + inlineFix);
+  }
+  html = html.replace(/(src="js\/[a-zA-Z0-9_.\-/]+\.js)(?:\?[^"]*)?(")/g, '$1?v=20261023c$2');
+  html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, '$1?v=20261023c$2');
+  fs.writeFileSync(p, html, 'utf8');
+}
 
 // 2. Giải mã data/db.json ra data/db-live.json để sync.php phục vụ đầy đủ 1.517 tài khoản thật
 if (fs.existsSync(DB_FILE) && fs.existsSync(DB_KEY_FILE)) {
@@ -38,9 +52,8 @@ if (fs.existsSync(DB_FILE) && fs.existsSync(DB_KEY_FILE)) {
 fs.rmSync(STAGE_DIR, { recursive: true, force: true });
 fs.mkdirSync(STAGE_DIR, { recursive: true });
 
-// Copy toàn bộ nội dung trong public/ ra gốc public_html VÀ giữ bản sao trong public/
+// Copy toàn bộ nội dung trong public/ ra thẳng gốc public_html
 fs.cpSync(path.join(ROOT, 'public'), STAGE_DIR, { recursive: true });
-fs.cpSync(path.join(ROOT, 'public'), path.join(STAGE_DIR, 'public'), { recursive: true });
 fs.cpSync(path.join(ROOT, 'shared'), path.join(STAGE_DIR, 'shared'), { recursive: true });
 fs.cpSync(path.join(ROOT, 'data'), path.join(STAGE_DIR, 'data'), { recursive: true });
 
@@ -54,14 +67,15 @@ if (fs.existsSync(ZIP_OUT)) fs.unlinkSync(ZIP_OUT);
 
 // Dùng Python zipfile để đóng gói chuẩn đường dẫn "/" (không có "./") và quyền Unix 0644/0755 chuẩn LiteSpeed
 const pyScript = `
-import os, zipfile
+import os, time, zipfile
 stage = ${JSON.stringify(STAGE_DIR)}
 out = ${JSON.stringify(ZIP_OUT)}
+now = time.localtime()[:6]
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
     for root, dirs, files in os.walk(stage):
         rel_root = os.path.relpath(root, stage).replace('\\\\', '/')
         if rel_root != '.':
-            zi = zipfile.ZipInfo(rel_root + '/')
+            zi = zipfile.ZipInfo(rel_root + '/', date_time=now)
             zi.create_system = 3
             zi.external_attr = (0o40755 << 16) | 0x10
             zf.writestr(zi, b'')
@@ -70,7 +84,7 @@ with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
             rel = os.path.relpath(full, stage).replace('\\\\', '/')
             with open(full, 'rb') as fp:
                 data = fp.read()
-            zi = zipfile.ZipInfo(rel)
+            zi = zipfile.ZipInfo(rel, date_time=now)
             zi.compress_type = zipfile.ZIP_DEFLATED
             zi.create_system = 3
             zi.external_attr = (0o100644 << 16)

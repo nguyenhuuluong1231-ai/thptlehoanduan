@@ -10,6 +10,22 @@ ini_set('memory_limit', '256M');
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
+// Tự động dọn thư mục thừa public_html/public_html (bị kẹt quyền 0555 từ lần giải nén cũ)
+function _lhCleanDir(string $dir): void {
+  if (!is_dir($dir)) return;
+  @chmod($dir, 0755);
+  foreach (@scandir($dir) ?: [] as $item) {
+    if ($item === '.' || $item === '..') continue;
+    $p = $dir . '/' . $item;
+    if (is_dir($p) && !is_link($p)) _lhCleanDir($p);
+    else { @chmod($p, 0644); @unlink($p); }
+  }
+  @rmdir($dir);
+}
+if (is_dir(__DIR__ . '/public_html')) {
+  _lhCleanDir(__DIR__ . '/public_html');
+}
+
 $dataDir = is_dir(__DIR__ . '/data') ? (__DIR__ . '/data') : (dirname(__DIR__) . '/data');
 if (!is_dir($dataDir)) {
   @mkdir($dataDir, 0755, true);
@@ -24,6 +40,36 @@ $secretFile = $dataDir . '/secret.key';
 $secret = is_file($secretFile) ? trim((string)@file_get_contents($secretFile)) : 'lh-cpanel-default-secret-key';
 
 $action = $_GET['action'] ?? ($_SERVER['REQUEST_METHOD'] === 'POST' ? 'save' : 'load');
+
+if ($action === 'deploy-zip' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+  $auth = $_SERVER['HTTP_X_DEPLOY_KEY'] ?? ($_GET['key'] ?? '');
+  if (!$secret || !hash_equals($secret, trim((string)$auth))) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Forbidden']);
+    exit;
+  }
+  $rawZip = file_get_contents('php://input');
+  $tmpZip = __DIR__ . '/_deploy_tmp.zip';
+  if (!$rawZip || @file_put_contents($tmpZip, $rawZip) === false) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Cannot write zip']);
+    exit;
+  }
+  if (class_exists('ZipArchive')) {
+    $za = new ZipArchive();
+    if ($za->open($tmpZip) === true) {
+      $za->extractTo(__DIR__);
+      $za->close();
+      @unlink($tmpZip);
+      echo json_encode(['ok' => true, 'deployed' => true]);
+      exit;
+    }
+  }
+  @unlink($tmpZip);
+  http_response_code(500);
+  echo json_encode(['ok' => false, 'error' => 'ZipArchive failed']);
+  exit;
+}
 
 if ($action === 'poll') {
   clearstatcache(true, $dbFile);
@@ -117,4 +163,3 @@ if (is_file($dbFile)) {
 }
 
 echo json_encode(['ok' => false, 'empty' => true, 'secret' => $secret]);
-

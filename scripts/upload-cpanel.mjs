@@ -65,6 +65,32 @@ async function main() {
     process.exit(1);
   }
 
+  // Ưu tiên đẩy trực tiếp qua cầu nối bảo mật sync.php (không cần nhập lại tài khoản cPanel)
+  const secretFile = path.join(ROOT, 'data', 'secret.key');
+  if (fs.existsSync(secretFile)) {
+    try {
+      const secret = fs.readFileSync(secretFile, 'utf8').trim();
+      const zipBuf = fs.readFileSync(ZIP_FILE);
+      console.log('• Đang cập nhật mã nguồn trực tiếp lên https://tuvantamlihocduonglehoan.com ...');
+      const directRes = await fetch('https://tuvantamlihocduonglehoan.com/sync.php?action=deploy-zip', {
+        method: 'POST',
+        headers: { 'X-Deploy-Key': secret, 'Content-Type': 'application/octet-stream' },
+        body: zipBuf,
+      });
+      const directJson = await directRes.json().catch(() => ({}));
+      if (directRes.ok && directJson.ok) {
+        console.log('   ✓ Đã cập nhật và giải nén thành công lên máy chủ!');
+        console.log('\n====================================================================');
+        console.log('  ✓ HOÀN TẤT! Trang web của bạn đã hoạt động tại:');
+        console.log('    • Cổng Học sinh   : https://tuvantamlihocduonglehoan.com');
+        console.log('    • Cổng Giáo viên  : https://tuvantamlihocduonglehoan.com/quan-tri');
+        console.log('    • App Điện thoại  : https://tuvantamlihocduonglehoan.com/mobile');
+        console.log('====================================================================\n');
+        return;
+      }
+    } catch { /* fallback sang cPanel API */ }
+  }
+
   let user = process.argv[2] || process.env.CPANEL_USER || '';
   let pass = process.argv[3] || process.env.CPANEL_PASS || '';
 
