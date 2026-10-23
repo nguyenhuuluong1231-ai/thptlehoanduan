@@ -55,9 +55,18 @@ for (const dir of fs.existsSync(resSrc) ? fs.readdirSync(resSrc) : []) {
   fs.mkdirSync(to, { recursive: true });
   for (const f of fs.readdirSync(from)) { fs.copyFileSync(path.join(from, f), path.join(to, f)); icons++; }
 }
+for (const d of ['drawable', 'drawable-v24']) {
+  const fgXml = path.join(resDst, d, 'ic_launcher_foreground.xml');
+  if (fs.existsSync(fgXml)) fs.rmSync(fgXml, { force: true });
+}
+const anydpi = path.join(resDst, 'mipmap-anydpi-v26');
+fs.mkdirSync(anydpi, { recursive: true });
+const adaptiveXml = `<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>\n`;
+fs.writeFileSync(path.join(anydpi, 'ic_launcher.xml'), adaptiveXml);
+fs.writeFileSync(path.join(anydpi, 'ic_launcher_round.xml'), adaptiveXml);
 const bg = path.join(resDst, 'values', 'ic_launcher_background.xml');
 if (fs.existsSync(bg)) fs.writeFileSync(bg, fs.readFileSync(bg, 'utf8').replace(/#[0-9A-Fa-f]{6,8}/, '#FFFFFF'));
-console.log(`✓ Đã chép ${icons} tệp biểu tượng`);
+console.log(`✓ Đã chép ${icons} tệp biểu tượng logo Trường THPT Lê Hoàn`);
 
 // 3) Số phiên bản & Chữ ký cố định (lehoan-release.keystore)
 const ksSrc = path.join(mobile, 'lehoan-release.keystore');

@@ -86,11 +86,4 @@ jobs:
           git push origin :refs/tags/apk-latest || true
           gh release create apk-latest "Tu-van-tam-ly-hoc-duong.apk" --repo "${{ github.repository }}" --title "Tư vấn tâm lý học đường - APK Android" --notes "Ứng dụng Android **Tư vấn tâm lý học đường** (Trường THPT Lê Hoàn) — kết nối trực tiếp https://tuvantamlihocduonglehoan.com/mobile"
 
-      - name: Phát hành bản APK mới nhất lên GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete apk-latest --repo "${{ github.repository }}" --yes || true
-          git push origin :refs/tags/apk-latest || true
-          gh release create apk-latest "Tu-van-tam-ly-hoc-duong.apk" --repo "${{ github.repository }}" --title "Tư vấn tâm lý học đường - APK Android" --notes "Ứng dụng Android **Tư vấn tâm lý học đường** (Trường THPT Lê Hoàn) — kết nối trực tiếp https://tuvantamlihocduonglehoan.com/mobile"
 

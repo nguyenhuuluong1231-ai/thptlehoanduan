@@ -32,10 +32,17 @@ async function boot() {
     }
     setPortal(portal);
   }
-  if (!IS_MOBILE && !STAFF && getMode() === 'server' && (location.pathname === '/' || location.pathname === '/index.html')) {
-    try { history.replaceState(null, '', '/hocsinhlogin' + location.search + location.hash); } catch { /* bỏ qua */ }
+  if (!IS_MOBILE && !STAFF && (location.pathname === '/' || location.pathname === '/index.html')) {
+    const isPhoneBrowser = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent || '') || matchMedia('(max-width: 760px)').matches;
+    if (isPhoneBrowser) {
+      location.replace('/mobile');
+      return;
+    }
+    if (getMode() === 'server') {
+      try { history.replaceState(null, '', '/hocsinhlogin' + location.search + location.hash); } catch { /* bỏ qua */ }
+    }
   }
-  try { settings = await api.get('api/settings/public'); } catch { settings = { schoolName: 'Trường THPT Lê Hoàn', slogan: '', logo: 'assets/logo-mark.svg', hotlines: [] }; }
+  try { settings = await api.get('api/settings/public'); } catch { settings = { schoolName: 'Trường THPT Lê Hoàn', slogan: '', logo: 'assets/school_logo.png', hotlines: [] }; }
   if (!IS_MOBILE) await loadCaptcha();
   render();
 }
@@ -60,7 +67,7 @@ function renderStudentFooter(s) {
     <div class="lcf-inner">
       <div class="lcf-bar-top">
         <div class="lcf-org-head">
-          <img src="${esc(s.logo || 'assets/logo-mark.svg')}" alt="" class="lcf-org-logo">
+          <img src="${esc(s.logo || 'assets/school_logo.png')}" alt="" class="lcf-org-logo">
           <div class="lcf-org-titles">
             <h3 class="lcf-org-title">${esc((s.schoolName || 'TRƯỜNG THPT LÊ HOÀN').toUpperCase())}</h3>
             <span class="lcf-org-sub">SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH GIA LAI</span>
@@ -235,7 +242,7 @@ function renderMobile() {
   <div class="auth auth-mobile">
     <header class="m-login-hero">
       <div class="m-login-top">
-        <a class="m-login-brand" href="./">
+        <a class="m-login-brand" href="${isNativeApp() ? 'index.html' : 'index.html?mobile=1'}">
           <img src="${esc(s.logo)}" alt="">
           <div>
             <b>${esc(s.schoolName)}</b>

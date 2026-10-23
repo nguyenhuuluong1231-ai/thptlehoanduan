@@ -6,6 +6,16 @@
   RewriteCond %{HTTPS} !=on
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
+  # Trang chủ gốc (/): trên trình duyệt điện thoại -> /mobile, trên máy tính -> /hocsinhlogin
+  RewriteCond %{REQUEST_URI} ^/?$
+  RewriteCond %{QUERY_STRING} !(^|&)(mobile|switch)= [NC]
+  RewriteCond %{HTTP_USER_AGENT} (Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera\ Mini|Mobile) [NC]
+  RewriteRule ^$ /mobile [L,R=302]
+
+  RewriteCond %{REQUEST_URI} ^/?$
+  RewriteCond %{QUERY_STRING} !(^|&)(mobile|switch)= [NC]
+  RewriteRule ^$ /hocsinhlogin [L,R=302]
+
   # Chặn truy cập trực tiếp vào các tệp dữ liệu nhạy cảm, mã nguồn JS/PHP và cấu hình máy chủ
   RewriteRule ^data/.*\.(json|key|tmp.*)$ - [F,L,NC]
   RewriteRule ^(server\.js|app\.cjs|package\.json|package-lock\.json|render\.yaml|Dockerfile)(/|$) - [F,L,NC]

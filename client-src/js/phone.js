@@ -12,7 +12,7 @@ const DEVICES = {
   a55: { name: 'Galaxy A55', w: 384, h: 854 },
   s24: { name: 'Galaxy S24', w: 360, h: 780 },
 };
-const SCREENS = [['./', 'Đăng nhập', 'lock'], ['app.html', 'Cổng học sinh', 'grad'], ['admin.html', 'Cổng quản trị · GV', 'building']];
+const SCREENS = [['index.html?mobile=1', 'Đăng nhập', 'lock'], ['app.html?mobile=1', 'Cổng học sinh', 'grad'], ['admin.html?mobile=1', 'Cổng quản trị · GV', 'building']];
 const BEZEL = 12, SBAR = 30;
 let dev = DEVICES[store.get('lh_phone_dev')] ? store.get('lh_phone_dev') : 'pixel';
 let nav = store.get('lh_phone_nav', 'buttons');
@@ -69,8 +69,8 @@ function render() {
   $('#root').innerHTML = `
   <div class="pp">
     <header class="pp-top">
-      <a class="brand" href="./" style="padding:0"><img src="assets/logo-mark.svg" alt=""><div><b>App điện thoại</b><span>Cổng Học Đường Số · Trường THPT Lê Hoàn</span></div></a>
-      <div class="row" style="gap:8px"><a class="btn ghost sm" href="./">${icon('globe')} Bản web</a><button class="icon-btn" id="theme" aria-label="Đổi giao diện sáng/tối">${icon('moon')}</button></div>
+      <a class="brand" href="/mobile" style="padding:0"><img src="assets/school_logo.png" alt=""><div><b>App điện thoại</b><span>Cổng Học Đường Số · Trường THPT Lê Hoàn</span></div></a>
+      <div class="row" style="gap:8px"><a class="btn ghost sm" href="/hocsinhlogin">${icon('globe')} Bản web</a><button class="icon-btn" id="theme" aria-label="Đổi giao diện sáng/tối">${icon('moon')}</button></div>
     </header>
     <main class="pp-main">
       <div class="pp-stage" id="stage">
@@ -137,7 +137,7 @@ function bind() {
   $$('[data-dev]').forEach(b => b.onclick = () => { dev = b.dataset.dev; store.set('lh_phone_dev', dev); render(); });
   $$('[data-navmode]').forEach(b => b.onclick = () => { nav = b.dataset.navmode; store.set('lh_phone_nav', nav); render(); });
   $$('[data-go]').forEach(b => b.onclick = () => {
-    const target = b.dataset.go === './' ? './?switch=1' : b.dataset.go;
+    const target = b.dataset.go.startsWith('index.html') ? 'index.html?mobile=1&switch=1' : b.dataset.go;
     try { sessionStorage.setItem('lh_phone_src', b.dataset.go); store.set('lh_phone_src', b.dataset.go); } catch { /* bỏ qua */ }
     $('#fr').src = target;
   });
@@ -148,8 +148,8 @@ function bind() {
       else if (b.dataset.nav === 'recent') w.location.reload();
       else if (/app\.html/.test(w.location.pathname)) w.location.hash = 'home';
       else if (/(admin|teacher)\.html/.test(w.location.pathname)) w.location.hash = '';
-      else $('#fr').src = './';
-    } catch { $('#fr').src = './'; }
+      else $('#fr').src = 'index.html?mobile=1';
+    } catch { $('#fr').src = 'index.html?mobile=1'; }
   });
 }
 

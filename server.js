@@ -517,6 +517,12 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
+  if (urlPath === '/' && !url.searchParams.has('mobile') && !url.searchParams.has('switch')) {
+    const ua = String(req.headers['user-agent'] || '');
+    const isPhone = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+    res.writeHead(302, { Location: (isPhone ? '/mobile' : '/hocsinhlogin') + (url.search || ''), 'Cache-Control': 'no-store' });
+    return res.end();
+  }
   serveStatic(req, res, urlPath);
 });
 
