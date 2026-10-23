@@ -1,4 +1,4 @@
 {
-  "serverUrl": "",
-  "_ghi_chu": "Điền địa chỉ máy chủ của trường để app tự kết nối, ví dụ https://lehoan.edu.vn hoặc http://192.168.1.10:3000. Để trống: người dùng tự nhập trong app (mục Máy chủ trường ở trang đăng nhập). Có thể ghi đè bằng biến môi trường SERVER_URL khi build."
+  "serverUrl": "https://tuvantamlihocduonglehoan.com",
+  "_ghi_chu": "Địa chỉ máy chủ chính thức của trường để app Android tự động kết nối và đồng bộ dữ liệu thời gian thực."
 }

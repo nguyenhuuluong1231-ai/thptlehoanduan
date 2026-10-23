@@ -1,13 +1,13 @@
 {
   "appId": "vn.edu.lehoan.portal",
-  "appName": "THPT Lê Hoàn",
+  "appName": "Tư vấn tâm lý học đường",
   "webDir": "www",
   "server": {
-    "androidScheme": "http",
+    "androidScheme": "https",
     "cleartext": true
   },
   "android": {
     "allowMixedContent": true,
-    "backgroundColor": "#f4f6fb"
+    "backgroundColor": "#0b1120"
   }
 }

@@ -68,6 +68,9 @@ DirectoryIndex index.html public/index.html
 ErrorDocument 404 /index.html
 
 <IfModule mod_headers.c>
+  Header set Access-Control-Allow-Origin "*"
+  Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+  Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Channel-Id, X-Deploy-Key"
   <FilesMatch "\.(html|js|css)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>

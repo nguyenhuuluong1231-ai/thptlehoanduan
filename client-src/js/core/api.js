@@ -1,6 +1,6 @@
 // Lớp gọi API: tự phát hiện máy chủ Node.js; nếu không có (vd. bản xem trước tĩnh) sẽ chạy
 // cùng bộ API ngay trong trình duyệt (chế độ demo, dữ liệu lưu trên máy người xem).
-import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js';
+import { store, toast, apiBase, isNativeApp, compressImage, readDataUrl } from './ui.js';
 import * as demoMod from './demo.js';
 
 if (typeof window !== 'undefined') {
@@ -111,7 +111,7 @@ export const getMode = () => (mode === 'demo' && (demo?.isRemote?.() || (typeof 
 
 export async function detect() {
   if (mode) return mode;
-  const isLocalHost = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
+  const isLocalHost = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname) && !isNativeApp() && !apiBase();
   if (isLocalHost) {
     try {
       const r = await fetch(apiUrl('api/health'), { cache: 'no-store', headers: { accept: 'application/json' }, signal: AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined });

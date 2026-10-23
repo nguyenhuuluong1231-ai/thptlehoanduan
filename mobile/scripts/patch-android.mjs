@@ -1,5 +1,5 @@
-// Chỉnh dự án Android do Capacitor sinh ra: quyền camera / vị trí / ảnh, cho phép http trong mạng LAN,
-// biểu tượng app theo logo trường, số phiên bản. Chạy sau `npx cap add android` (an toàn khi chạy lại nhiều lần).
+// Chỉnh dự án Android do Capacitor sinh ra: tên ứng dụng "Tư vấn tâm lý học đường",
+// quyền camera / vị trí / ảnh, cho phép http/https, biểu tượng app theo logo trường, số phiên bản.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,10 +8,14 @@ const mobile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = path.join(mobile, 'android', 'app');
 if (!fs.existsSync(app)) { console.error('Chưa có thư mục android/. Chạy: npx cap add android'); process.exit(1); }
 
+const capCfg = JSON.parse(fs.readFileSync(path.join(mobile, 'capacitor.config.json'), 'utf8'));
+const appName = capCfg.appName || 'Tư vấn tâm lý học đường';
+
 // 1) AndroidManifest.xml
 const manifestPath = path.join(app, 'src', 'main', 'AndroidManifest.xml');
 let mf = fs.readFileSync(manifestPath, 'utf8');
 const perms = [
+  '<uses-permission android:name="android.permission.INTERNET" />',
   '<uses-permission android:name="android.permission.CAMERA" />',
   '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />',
   '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />',
@@ -25,7 +29,17 @@ const add = perms.filter(p => !mf.includes(p.match(/android:name="([^"]+)"/)[1])
 if (add.length) mf = mf.replace('</manifest>', `    ${add.join('\n    ')}\n</manifest>`);
 if (!mf.includes('usesCleartextTraffic')) mf = mf.replace('<application', '<application\n        android:usesCleartextTraffic="true"');
 fs.writeFileSync(manifestPath, mf);
-console.log(`✓ AndroidManifest: thêm ${add.length} quyền, cho phép kết nối http trong mạng nội bộ`);
+console.log(`✓ AndroidManifest: thêm ${add.length} quyền, cho phép kết nối mạng`);
+
+// 1b) strings.xml — đặt tên hiển thị "Tư vấn tâm lý học đường"
+const stringsPath = path.join(app, 'src', 'main', 'res', 'values', 'strings.xml');
+if (fs.existsSync(stringsPath)) {
+  let st = fs.readFileSync(stringsPath, 'utf8');
+  st = st.replace(/<string name="app_name">[^<]*<\/string>/, `<string name="app_name">${appName}</string>`);
+  st = st.replace(/<string name="title_activity_main">[^<]*<\/string>/, `<string name="title_activity_main">${appName}</string>`);
+  fs.writeFileSync(stringsPath, st);
+  console.log(`✓ Tên ứng dụng Android: ${appName}`);
+}
 
 // 2) Biểu tượng app (logo trường)
 const resSrc = path.join(mobile, 'resources', 'android');

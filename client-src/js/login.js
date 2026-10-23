@@ -255,7 +255,7 @@ function renderMobile() {
           <span class="m-login-pill">${icon('school')} Giáo viên</span>
           <span class="m-login-pill">${icon('shield')} Quản trị</span>
         </div>
-        ${isNativeApp() ? `<button type="button" class="server-card" id="srv">${icon('globe')}<div class="grow" style="min-width:0"><div class="xs muted">Máy chủ trường</div><b class="small truncate">${getMode() === 'server' ? esc(apiBase()) : 'Chưa kết nối · đang dùng bản trải nghiệm'}</b></div><span class="btn plain sm">Đổi</span></button>` : ''}
+        ${isNativeApp() && !window.LH_CONFIG?.apiBase ? `<button type="button" class="server-card" id="srv">${icon('globe')}<div class="grow" style="min-width:0"><div class="xs muted">Máy chủ trường</div><b class="small truncate">${getMode() === 'server' ? esc(apiBase()) : 'Chưa kết nối · đang dùng bản trải nghiệm'}</b></div><span class="btn plain sm">Đổi</span></button>` : ''}
         <div id="cont"></div>
         <div class="m-login-head">
           <h2>Đăng nhập hệ thống</h2>

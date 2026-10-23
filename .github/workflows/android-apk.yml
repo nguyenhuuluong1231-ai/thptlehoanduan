@@ -1,20 +1,20 @@
-# Tự động build tệp APK Android trên GitHub (miễn phí, không cần cài Android Studio).
-# Cách dùng: đưa thư mục dự án lên GitHub → tab Actions → "Build APK Android" → Run workflow.
-# Xong khoảng 5–8 phút, tải tệp APK ở mục Artifacts của lần chạy.
-# Tùy chọn: Settings → Secrets and variables → Actions → Variables → thêm SERVER_URL (vd. https://lehoan.edu.vn)
-# để app tự kết nối máy chủ trường; nếu không, người dùng nhập địa chỉ trong app.
+# Tự động build tệp APK Android "Tư vấn tâm lý học đường" trên GitHub Actions
+# và phát hành trực tiếp qua GitHub Release để tải về ngay.
 name: Build APK Android
 
 on:
   workflow_dispatch:
     inputs:
       server_url:
-        description: 'Địa chỉ máy chủ trường (để trống = dùng biến SERVER_URL hoặc để người dùng tự nhập)'
+        description: 'Địa chỉ máy chủ trường (mặc định: https://tuvantamlihocduonglehoan.com)'
         required: false
-        default: ''
+        default: 'https://tuvantamlihocduonglehoan.com'
   push:
     branches: [main, master]
     paths: ['public/**', 'shared/**', 'mobile/**', '.github/workflows/android-apk.yml']
+
+permissions:
+  contents: write
 
 jobs:
   apk:
@@ -49,9 +49,9 @@ jobs:
       - name: Cài Capacitor
         run: npm install --no-audit --no-fund
 
-      - name: Đóng gói giao diện web vào app
+      - name: Đóng gói giao diện mobile vào app
         env:
-          SERVER_URL: ${{ github.event.inputs.server_url || vars.SERVER_URL }}
+          SERVER_URL: ${{ github.event.inputs.server_url || vars.SERVER_URL || 'https://tuvantamlihocduonglehoan.com' }}
         run: node scripts/build-www.mjs
 
       - name: Tạo dự án Android
@@ -59,6 +59,7 @@ jobs:
           npx cap add android
           node scripts/patch-android.mjs
           npx cap sync android
+          node scripts/patch-android.mjs
 
       - name: Build APK
         working-directory: mobile/android
@@ -66,11 +67,30 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Đổi tên tệp APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "LeHoan-$(node -p "require('./package.json').version").apk"
+      - name: Đặt tên tệp APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk "Tu-van-tam-ly-hoc-duong.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "LeHoan-$(node -p "require('./package.json').version").apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: LeHoan-APK
-          path: mobile/LeHoan-*.apk
+          name: Tu-van-tam-ly-hoc-duong-APK
+          path: mobile/*.apk
           retention-days: 30
+
+      - name: Phát hành bản APK mới nhất lên GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --repo "${{ github.repository }}" --yes || true
+          git push origin :refs/tags/apk-latest || true
+          gh release create apk-latest "Tu-van-tam-ly-hoc-duong.apk" --repo "${{ github.repository }}" --title "Tư vấn tâm lý học đường - APK Android" --notes "Ứng dụng Android **Tư vấn tâm lý học đường** (Trường THPT Lê Hoàn) — kết nối trực tiếp https://tuvantamlihocduonglehoan.com/mobile"
+
+      - name: Phát hành bản APK mới nhất lên GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --repo "${{ github.repository }}" --yes || true
+          git push origin :refs/tags/apk-latest || true
+          gh release create apk-latest "Tu-van-tam-ly-hoc-duong.apk" --repo "${{ github.repository }}" --title "Tư vấn tâm lý học đường - APK Android" --notes "Ứng dụng Android **Tư vấn tâm lý học đường** (Trường THPT Lê Hoàn) — kết nối trực tiếp https://tuvantamlihocduonglehoan.com/mobile"
+

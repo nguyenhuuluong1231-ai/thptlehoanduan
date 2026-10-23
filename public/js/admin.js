@@ -73,7 +73,7 @@ const head = (title, sub = '', actions = '') => `${_lhD("PGRpdiBjbGFzcz0icGFnZS1
 const TONE = { pending: '', verifying: _lhD("d2Fybg=="), reminded: _lhD("aW5mbw=="), disciplined: _lhD("YmFk"), recorded: _lhD("YmFk"), resolved: _lhD("b2s="), archived: '' };
 const SEV_TONE = { low: '', medium: _lhD("d2Fybg=="), high: _lhD("YmFk"), critical: _lhD("Y3JpdGljYWw=") };
 const LEVEL = { red: [_lhD("S2jhuqluIGPhuqVw"), _lhD("Y3JpdGljYWw="), _lhD("dmFyKC0tYmFkKQ==")], orange: [_lhD("Q2Fv"), _lhD("YmFk"), _lhD("dmFyKC0tYWNjZW50KQ==")], yellow: [_lhD("VGhlbyBkw7Vp"), _lhD("d2Fybg=="), _lhD("dmFyKC0td2Fybik=")] };
-const staffLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) ? _lhD("aW5kZXguaHRtbD9tb2JpbGU9MSZzd2l0Y2g9MQ==") : (isNativeApp() ? _lhD("Li8/c3dpdGNoPTE=") : _lhD("c3RhZmYuaHRtbA==")));
+const staffLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? _lhD("aW5kZXguaHRtbD9tb2JpbGU9MSZzd2l0Y2g9MQ==") : _lhD("c3RhZmYuaHRtbA=="));
 async function boot() {
 root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();

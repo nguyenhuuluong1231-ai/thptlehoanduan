@@ -1,5 +1,5 @@
 const _lhD=(s)=>{try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}};
-import { store, toast, apiBase, compressImage, readDataUrl } from './ui.js';
+import { store, toast, apiBase, isNativeApp, compressImage, readDataUrl } from './ui.js';
 import * as demoMod from './demo.js';
 if (typeof window !== _lhD("dW5kZWZpbmVk")) {
 if (!window.process) window.process = { env: {} };
@@ -100,7 +100,7 @@ export function setPortal(p) { portal = p; }
 export const getMode = () => (mode === _lhD("ZGVtbw==") && (demo?.isRemote?.() || (typeof location !== _lhD("dW5kZWZpbmVk") && location.protocol.startsWith(_lhD("aHR0cA=="))))) ? _lhD("c2VydmVy") : mode;
 export async function detect() {
 if (mode) return mode;
-const isLocalHost = typeof location !== _lhD("dW5kZWZpbmVk") && [_lhD("bG9jYWxob3N0"), _lhD("MTI3LjAuMC4x")].includes(location.hostname);
+const isLocalHost = typeof location !== _lhD("dW5kZWZpbmVk") && [_lhD("bG9jYWxob3N0"), _lhD("MTI3LjAuMC4x")].includes(location.hostname) && !isNativeApp() && !apiBase();
 if (isLocalHost) {
 try {
 const r = await fetch(apiUrl(_lhD("YXBpL2hlYWx0aA==")), { cache: _lhD("bm8tc3RvcmU="), headers: { accept: _lhD("YXBwbGljYXRpb24vanNvbg==") }, signal: AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined });

@@ -8,6 +8,14 @@ ini_set('display_errors', '0');
 ini_set('memory_limit', '256M');
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Channel-Id, X-Deploy-Key');
+header('Access-Control-Max-Age: 86400');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  http_response_code(204);
+  exit;
+}
 
 function _lhCleanDir(string $dir): void {
   if (!is_dir($dir)) return;

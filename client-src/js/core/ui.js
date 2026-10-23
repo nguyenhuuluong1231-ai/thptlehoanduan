@@ -42,7 +42,7 @@ export function avatar(u, cls = '') {
   const parts = name.replace(/^(ThS\.|TS\.|Thầy|Cô)\s*/i, '').trim().split(/\s+/);
   const ini = ((parts.at(-2)?.[0] || '') + (parts.at(-1)?.[0] || '')).toUpperCase();
   let h = 0; for (const c of (u?.id || name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  if (u?.avatar) return `<span class="avatar ${cls}"><img src="${esc(u.avatar)}" alt="" loading="lazy"></span>`;
+  if (u?.avatar) return `<span class="avatar ${cls}"><img src="${esc(fileUrl(u.avatar))}" alt="" loading="lazy"></span>`;
   return `<span class="avatar ${cls}" style="background:${AV_COLORS[h % AV_COLORS.length]}" aria-hidden="true">${esc(ini)}</span>`;
 }
 
@@ -344,7 +344,7 @@ export function gauge(score, color) {
 // ---------- Ảnh bìa bản tin ----------
 const CAT_ICON = { violence: 'shieldAlert', scam: 'alert', drugs: 'pill', explosive: 'bomb', law: 'scale', traffic: 'car', wellbeing: 'heartHand', school: 'school' };
 export function cover(n, tag = true) {
-  return `<div class="cover" data-cat="${esc(n.category)}">${n.cover ? `<img src="${esc(n.cover)}" alt="" loading="lazy">` : icon(CAT_ICON[n.category] || 'news')}${tag ? `<span class="cv-tag badge solid" style="background:rgba(10,20,50,.55);color:#fff;backdrop-filter:blur(6px)">${esc(n.badge || '')}</span>` : ''}</div>`;
+  return `<div class="cover" data-cat="${esc(n.category)}">${n.cover ? `<img src="${esc(fileUrl(n.cover))}" alt="" loading="lazy">` : icon(CAT_ICON[n.category] || 'news')}${tag ? `<span class="cv-tag badge solid" style="background:rgba(10,20,50,.55);color:#fff;backdrop-filter:blur(6px)">${esc(n.badge || '')}</span>` : ''}</div>`;
 }
 
 // ---------- Chủ đề sáng / tối ----------
@@ -381,8 +381,8 @@ export function initDevToolsGuard() {
 export function idCard(u, settings) {
   const bars = [...(u.id || '0000')].flatMap((c, i) => { const n = c.charCodeAt(0); return [1 + (n % 3), 1 + ((n >> 2) % 2), 2 + ((n + i) % 3)]; }).slice(0, 26);
   return `<div class="idcard">
-    <div class="top"><img src="${esc(settings?.logo || 'assets/logo-mark.svg')}" alt=""><div><b>${esc(settings?.schoolName || 'Trường THPT')}</b><span>Thẻ học sinh điện tử · ${esc(settings?.schoolYear || '')}</span></div></div>
-    <div class="body"><div class="photo">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(firstName(u.name).slice(0, 1))}</div>
+    <div class="top"><img src="${esc(fileUrl(settings?.logo || 'assets/logo-mark.svg'))}" alt=""><div><b>${esc(settings?.schoolName || 'Trường THPT')}</b><span>Thẻ học sinh điện tử · ${esc(settings?.schoolYear || '')}</span></div></div>
+    <div class="body"><div class="photo">${u.avatar ? `<img src="${esc(fileUrl(u.avatar))}" alt="">` : esc(firstName(u.name).slice(0, 1))}</div>
       <div class="grow"><div class="name">${esc(u.name)}</div><dl class="kv"><dt>Lớp</dt><dd>${esc(u.className || '')}</dd><dt>Ngày sinh</dt><dd>${u.dob ? fmtDate(u.dob) : '—'}</dd><dt>Niên khóa</dt><dd>${esc(u.courseYear || '')}</dd></dl></div></div>
     <div class="idcode"><div><div class="xs" style="opacity:.7">Mã học sinh</div><div class="mono">${esc(u.id)}</div></div><div class="bars" aria-hidden="true">${bars.map(w => `<i style="width:${w}px"></i>`).join('')}</div></div>
   </div>`;
@@ -398,7 +398,7 @@ export const apiBase = () => {
   return String(saved ?? (typeof window !== 'undefined' ? window.LH_CONFIG?.apiBase : '') ?? '').replace(/\/+$/, '');
 };
 /** Đường dẫn tệp tải lên (uploads/…) → địa chỉ đầy đủ khi chạy trong app. */
-export const fileUrl = (u = '') => (/^uploads\//.test(u) && apiBase() ? `${apiBase()}/${u}` : u);
+export const fileUrl = (u = '') => (/^\/?uploads\//.test(u) && apiBase() ? `${apiBase()}/${String(u).replace(/^\/+/, '')}` : u);
 export const fmtSize = (n = 0) => (n >= 1048576 ? `${(n / 1048576).toFixed(n >= 10485760 ? 0 : 1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
 export function readDataUrl(file) {
   return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(new Error('Không đọc được tệp.')); r.readAsDataURL(file); });
@@ -525,8 +525,8 @@ const DEFAULT_APP_GUIDE = {
   qrTitle: 'Quét mã QR để mở & tải trên điện thoại',
   qrSub: 'Dùng Camera, Zalo hoặc trình duyệt quét mã để mở ngay trên điện thoại',
   qrBadge: 'Hỗ trợ Android · iOS · PC',
-  customUrl: '',
-  apkUrl: '',
+  customUrl: 'https://tuvantamlihocduonglehoan.com',
+  apkUrl: '/Tu-van-tam-ly-hoc-duong.apk',
   qrNote: 'Lưu ý: Nếu mở bằng địa chỉ mạng nội bộ (192.168.x.x), điện thoại và máy tính cần kết nối cùng một mạng Wi-Fi.',
   benefitsTitle: 'Lợi ích khi cài App lên thiết bị',
   benefits: [
