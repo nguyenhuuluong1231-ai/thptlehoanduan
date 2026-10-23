@@ -29,6 +29,9 @@ const perms = [
 const add = perms.filter(p => !mf.includes(p.match(/android:name="([^"]+)"/)[1]));
 if (add.length) mf = mf.replace('</manifest>', `    ${add.join('\n    ')}\n</manifest>`);
 if (!mf.includes('usesCleartextTraffic')) mf = mf.replace('<application', '<application\n        android:usesCleartextTraffic="true"');
+if (!mf.includes('android:screenOrientation=')) {
+  mf = mf.replace('<activity', '<activity\n            android:screenOrientation="portrait"');
+}
 fs.writeFileSync(manifestPath, mf);
 console.log(`✓ AndroidManifest: thêm ${add.length} quyền, cho phép kết nối mạng`);
 

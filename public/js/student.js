@@ -35,12 +35,12 @@ const NAV = [
 ] },
 ];
 const ALL = NAV.flatMap(g => g.items).concat([{ id: _lhD("cHJvZmlsZQ=="), label: _lhD("SOG7kyBzxqEgY8OhIG5ow6Ju"), icon: _lhD("dXNlcg==") }, { id: _lhD("aW5ib3g="), label: _lhD("VGluIG5o4bqvbg=="), icon: _lhD("Y2hhdHM=") }]);
-const compact = () => matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches;
+const compact = () => isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches;
 const ROOT_TABS = [_lhD("aG9tZQ=="), _lhD("aW5ib3g="), _lhD("cmVwb3J0"), _lhD("YWk="), _lhD("cHJvZmlsZQ==")];
 const CHAT_PAGES = [_lhD("aW5ib3g="), _lhD("c2Nob29sLWNoYXQ="), _lhD("dGVhY2hlci1jaGF0"), _lhD("Y291bnNlbGluZw==")];
 const enabled = (it) => !it.module || S.settings?.modules?.[it.module] !== false;
 const go = (page) => { if (location.hash !== _lhD("Iw==") + page) location.hash = page; else render(); };
-const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? _lhD("aW5kZXguaHRtbD9tb2JpbGU9MSZzd2l0Y2g9MQ==") : (getMode() !== _lhD("c2VydmVy") ? _lhD("Li8/c3dpdGNoPTE=") : _lhD("L2xvZ2luaG9jaW5o")));
+const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? _lhD("aW5kZXguaHRtbD9tb2JpbGU9MSZzd2l0Y2g9MQ==") : (getMode() !== _lhD("c2VydmVy") ? _lhD("Li8/c3dpdGNoPTE=") : _lhD("L2hvY3Npbmhsb2dpbg==")));
 async function boot() {
 root.innerHTML = _lhD("PGRpdiBzdHlsZT0ibWluLWhlaWdodDoxMDB2aDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxNnB4O3BhZGRpbmc6MjRweDt0ZXh0LWFsaWduOmNlbnRlciI+PGltZyBzcmM9ImFzc2V0cy9zY2hvb2xfbG9nby5wbmciIGFsdD0iVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6BuIiBzdHlsZT0id2lkdGg6OTZweDtoZWlnaHQ6OTZweDtvYmplY3QtZml0OmNvbnRhaW47Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojZmZmO3BhZGRpbmc6NnB4O2JveC1zaGFkb3c6MCAxMnB4IDMycHggcmdiYSgyMyw3MSwyMDEsLjI4KSI+PGRpdiBzdHlsZT0iZm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxNnB4Ij5Ucsaw4budbmcgVEhQVCBMw6ogSG/DoG48L2Rpdj48ZGl2IGNsYXNzPSJza2VsIiBzdHlsZT0id2lkdGg6MTgwcHg7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjk5cHgiPjwvZGl2PjwvZGl2Pg==");
 await detect();

@@ -6,11 +6,6 @@
   RewriteCond %{HTTPS} !=on
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # Khi truy cập trang chủ bằng điện thoại -> tự động chuyển sang /mobile
-  RewriteCond %{HTTP_USER_AGENT} "iPhone|iPod|iPad|Android|Mobile" [NC]
-  RewriteCond %{QUERY_STRING} !mobile=1 [NC]
-  RewriteRule ^(|index\.html|login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ /mobile [L,R=302,NC]
-
   # Chặn truy cập trực tiếp vào các tệp dữ liệu nhạy cảm, mã nguồn JS/PHP và cấu hình máy chủ
   RewriteRule ^data/.*\.(json|key|tmp.*)$ - [F,L,NC]
   RewriteRule ^(server\.js|app\.cjs|package\.json|package-lock\.json|render\.yaml|Dockerfile)(/|$) - [F,L,NC]
@@ -40,8 +35,8 @@
   RewriteRule ^(quan-tri|admin-login|loginadmin|login-admin|dang-nhap-admin|dang-nhap-quan-tri|dang-nhap-giao-vien|logingiaovien|staff)/?$ public/staff.html [L,NC]
 
   RewriteCond %{DOCUMENT_ROOT}/index.html -f
-  RewriteRule ^(login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ index.html [L,NC]
-  RewriteRule ^(login|dang-nhap|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ public/index.html [L,NC]
+  RewriteRule ^(login|dang-nhap|hocsinhlogin|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ index.html [L,NC]
+  RewriteRule ^(login|dang-nhap|hocsinhlogin|loginhocinh|loginhocsinh|login-hoc-sinh|dang-nhap-hoc-sinh)/?$ public/index.html [L,NC]
 
   RewriteCond %{DOCUMENT_ROOT}/app.html -f
   RewriteRule ^(app|hoc-sinh|desktop\.html)/?$ app.html [L,NC]

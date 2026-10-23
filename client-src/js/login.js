@@ -10,10 +10,7 @@ const root = $('#root');
 const urlPortal = new URLSearchParams(location.search).get('portal');
 const portal = (document.body.dataset.portal === 'staff' || document.body.dataset.portal === 'admin' || urlPortal === 'staff' || urlPortal === 'admin') ? 'staff' : 'student';
 const STAFF = portal === 'staff';
-const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia('(max-width: 760px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-if (IS_MOBILE && window.self === window.top && !isNativeApp() && !STAFF && !/\/mobile\/?$/i.test(location.pathname)) {
-  location.replace('/mobile');
-}
+const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search);
 setPortal(portal);
 document.title = IS_MOBILE
   ? 'Đăng nhập · Cổng Học Đường Số Trường THPT Lê Hoàn'
@@ -36,7 +33,7 @@ async function boot() {
     setPortal(portal);
   }
   if (!IS_MOBILE && !STAFF && getMode() === 'server' && (location.pathname === '/' || location.pathname === '/index.html')) {
-    try { history.replaceState(null, '', '/loginhocinh' + location.search + location.hash); } catch { /* bỏ qua */ }
+    try { history.replaceState(null, '', '/hocsinhlogin' + location.search + location.hash); } catch { /* bỏ qua */ }
   }
   try { settings = await api.get('api/settings/public'); } catch { settings = { schoolName: 'Trường THPT Lê Hoàn', slogan: '', logo: 'assets/logo-mark.svg', hotlines: [] }; }
   if (!IS_MOBILE) await loadCaptcha();
@@ -167,7 +164,7 @@ function renderStudentFooter(s) {
 function render() {
   if (IS_MOBILE) return renderMobile();
   const s = settings;
-  const studentHref = getMode() === 'server' ? '/loginhocinh' : './';
+  const studentHref = getMode() === 'server' ? '/hocsinhlogin' : './';
   const staffHref = getMode() === 'server' ? '/quan-tri' : 'staff.html';
   const homeHref = STAFF ? staffHref : studentHref;
   const heroPoints = STAFF

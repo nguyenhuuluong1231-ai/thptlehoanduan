@@ -7,10 +7,7 @@ const root = $(_lhD("I3Jvb3Q="));
 const urlPortal = new URLSearchParams(location.search).get(_lhD("cG9ydGFs"));
 const portal = (document.body.dataset.portal === _lhD("c3RhZmY=") || document.body.dataset.portal === _lhD("YWRtaW4=") || urlPortal === _lhD("c3RhZmY=") || urlPortal === _lhD("YWRtaW4=")) ? _lhD("c3RhZmY=") : _lhD("c3R1ZGVudA==");
 const STAFF = portal === _lhD("c3RhZmY=");
-const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia(_lhD("KG1heC13aWR0aDogNzYwcHgp")).matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-if (IS_MOBILE && window.self === window.top && !isNativeApp() && !STAFF && !/\/mobile\/?$/i.test(location.pathname)) {
-location.replace(_lhD("L21vYmlsZQ=="));
-}
+const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search);
 setPortal(portal);
 document.title = IS_MOBILE
 ? _lhD("xJDEg25nIG5o4bqtcCDCtyBD4buVbmcgSOG7jWMgxJDGsOG7nW5nIFPhu5EgVHLGsOG7nW5nIFRIUFQgTMOqIEhvw6Bu")
@@ -32,7 +29,7 @@ if (user) { go(user.role === _lhD("c3R1ZGVudA==") ? _lhD("c3R1ZGVudA==") : _lhD(
 setPortal(portal);
 }
 if (!IS_MOBILE && !STAFF && getMode() === _lhD("c2VydmVy") && (location.pathname === _lhD("Lw==") || location.pathname === _lhD("L2luZGV4Lmh0bWw="))) {
-try { history.replaceState(null, '', _lhD("L2xvZ2luaG9jaW5o") + location.search + location.hash); } catch {  }
+try { history.replaceState(null, '', _lhD("L2hvY3Npbmhsb2dpbg==") + location.search + location.hash); } catch {  }
 }
 try { settings = await api.get(_lhD("YXBpL3NldHRpbmdzL3B1YmxpYw==")); } catch { settings = { schoolName: _lhD("VHLGsOG7nW5nIFRIUFQgTMOqIEhvw6Bu"), slogan: '', logo: _lhD("YXNzZXRzL2xvZ28tbWFyay5zdmc="), hotlines: [] }; }
 if (!IS_MOBILE) await loadCaptcha();
@@ -56,7 +53,7 @@ return `${_lhD("CiAgPGZvb3RlciBjbGFzcz0ibG9naW4tY29ycC1mb290ZXIiPgogICAgPGRpdiBj
 function render() {
 if (IS_MOBILE) return renderMobile();
 const s = settings;
-const studentHref = getMode() === _lhD("c2VydmVy") ? _lhD("L2xvZ2luaG9jaW5o") : _lhD("Li8=");
+const studentHref = getMode() === _lhD("c2VydmVy") ? _lhD("L2hvY3Npbmhsb2dpbg==") : _lhD("Li8=");
 const staffHref = getMode() === _lhD("c2VydmVy") ? _lhD("L3F1YW4tdHJp") : _lhD("c3RhZmYuaHRtbA==");
 const homeHref = STAFF ? staffHref : studentHref;
 const heroPoints = STAFF

@@ -41,13 +41,13 @@ const NAV = [
 ];
 const ALL = NAV.flatMap(g => g.items).concat([{ id: 'profile', label: 'Hồ sơ cá nhân', icon: 'user' }, { id: 'inbox', label: 'Tin nhắn', icon: 'chats' }]);
 // Giao diện gọn cho điện thoại / app (màn hình hẹp)
-const compact = () => matchMedia('(max-width: 760px)').matches;
+const compact = () => isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia('(max-width: 760px)').matches;
 const ROOT_TABS = ['home', 'inbox', 'report', 'ai', 'profile'];
 const CHAT_PAGES = ['inbox', 'school-chat', 'teacher-chat', 'counseling'];
 const enabled = (it) => !it.module || S.settings?.modules?.[it.module] !== false;
 const go = (page) => { if (location.hash !== '#' + page) location.hash = page; else render(); };
 
-const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? 'index.html?mobile=1&switch=1' : (getMode() !== 'server' ? './?switch=1' : '/loginhocinh'));
+const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? 'index.html?mobile=1&switch=1' : (getMode() !== 'server' ? './?switch=1' : '/hocsinhlogin'));
 
 // ---------------------------------------------------------------------------
 async function boot() {
