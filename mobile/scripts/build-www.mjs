@@ -17,7 +17,7 @@ const version = JSON.parse(fs.readFileSync(path.join(mobile, 'package.json'), 'u
 fs.rmSync(www, { recursive: true, force: true });
 fs.cpSync(path.join(root, 'public'), www, {
   recursive: true,
-  filter: (src) => !/(sw\.js|phone\.html|phone\.js|sync\.php|\.htaccess|[/\\]data([/\\]|$))$/.test(src),
+  filter: (src) => !/(\.apk$|sw\.js|phone\.html|phone\.js|sync\.php|\.htaccess|[/\\]data([/\\]|$))/i.test(src),
 });
 if (fs.existsSync(path.join(root, 'shared'))) {
   fs.cpSync(path.join(root, 'shared'), path.join(www, 'shared'), {
@@ -37,22 +37,23 @@ if (fs.existsSync(cssPath)) {
 }
 
 fs.writeFileSync(path.join(www, 'config.js'), `// Tự sinh bởi scripts/build-www.mjs — cấu hình app điện thoại
-window.LH_CONFIG = ${JSON.stringify({ app: true, apiBase: serverUrl, version }, null, 2)};
+window.LH_CONFIG = ${JSON.stringify({ app: true, appName: 'LeHoan ShareLove', apiBase: serverUrl, version }, null, 2)};
 `);
 
 let pages = 0;
 for (const f of fs.readdirSync(www).filter(f => f.endsWith('.html'))) {
   const p = path.join(www, f);
   let html = fs.readFileSync(p, 'utf8');
+  html = html.replace(/<script>window\.process=window\.process[\s\S]*?<\/script>/g, '<script>window.process=window.process||{env:{}};</script>');
   if (!html.includes('src="config.js"')) {
     if (/<head>/i.test(html)) {
       html = html.replace(/<head>/i, '<head>\n  <script src="config.js"></script>');
     } else {
       html = '<script src="config.js"></script>\n' + html;
     }
-    fs.writeFileSync(p, html);
-    pages++;
   }
+  fs.writeFileSync(p, html);
+  pages++;
 }
 console.log(`✓ Đã đóng gói ${pages} trang giao diện /mobile vào mobile/www`);
 console.log(`✓ Máy chủ đồng bộ mặc định: ${serverUrl}`);

@@ -116,6 +116,13 @@ export default function authRoutes(r) {
 
   r.get('/api/auth/me', { auth: 'user', group: G, desc: 'Thông tin tài khoản đang đăng nhập.' }, async (req, ctx) => ({ user: { ...publicUser(req.user), inCounselTeam: isCounselTeamTeacher(ctx.db.data, req.user) } }));
 
+  r.post('/api/auth/verify-password', { auth: 'user', group: G, desc: 'Xác minh mật khẩu tài khoản hiện tại để thực hiện thao tác bảo mật (tắt/đặt lại mã PIN hộp thư).', body: { password: '123456' } }, async (req, ctx) => {
+    const pw = str(req.body.password, 'mật khẩu', { required: true, max: 128 });
+    const ok = await ctx.crypto.verifyPassword(pw, req.user.passwordHash);
+    if (!ok) fail(400, 'Mật khẩu tài khoản không đúng. Vui lòng thử lại.');
+    return { ok: true };
+  });
+
   r.post('/api/auth/change-password', { auth: 'user', group: G, desc: 'Đổi mật khẩu.', body: { currentPassword: '123456', newPassword: 'MatKhauMoi@2026' } }, async (req, ctx) => {
     const cur = str(req.body.currentPassword, 'mật khẩu hiện tại', { required: true, max: 128 });
     const next = str(req.body.newPassword, 'mật khẩu mới', { required: true, min: 6, max: 128 });
@@ -146,8 +153,7 @@ export default function authRoutes(r) {
     if (b.hometown !== undefined) u.hometown = str(b.hometown, 'quê quán', { max: 100 });
     if (b.phone !== undefined) { const p = str(b.phone, 'số điện thoại', { max: 20 }); if (p && !/^[+\d][\d .]{7,18}$/.test(p)) fail(400, 'Số điện thoại không hợp lệ.'); u.phone = p; }
     if (b.email !== undefined) { const e = str(b.email, 'email', { max: 120 }); if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) fail(400, 'Email không hợp lệ.'); u.email = e; }
-    if (!b.avatar) fail(400, 'Vui lòng tải lên ảnh thẻ (có khuôn mặt) để hoàn tất hồ sơ.');
-    u.avatar = await ctx.storeFile(b.avatar, 'avatar');
+    if (b.avatar) u.avatar = await ctx.storeFile(b.avatar, 'avatar');
     u.profileComplete = true;
     audit(ctx, u, 'Hoàn tất hồ sơ lần đầu'); ctx.db.save();
     ctx.emit('profile:update', { user: publicUser(u) }, { userId: u.id });

@@ -258,6 +258,7 @@ export const api = {
     return true;
   },
 };
+if (typeof window !== 'undefined') window._lhApi = api;
 
 /** Báo lỗi API cho người dùng */
 export function showError(e) { toast(e?.message || 'Có lỗi xảy ra.', 'bad', 4800); }

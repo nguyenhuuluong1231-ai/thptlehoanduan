@@ -231,6 +231,7 @@ toast(`${_lhD("xJDDoyB4deG6pXQg")}${a.download}`, _lhD("b2s="));
 return true;
 },
 };
+if (typeof window !== _lhD("dW5kZWZpbmVk")) window._lhApi = api;
 export function showError(e) { toast(e?.message || _lhD("Q8OzIGzhu5dpIHjhuqN5IHJhLg=="), _lhD("YmFk"), 4800); }
 const handlers = new Map();
 let es = null;

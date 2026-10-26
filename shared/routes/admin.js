@@ -517,16 +517,30 @@ export default function adminRoutes(r) {
   // Tin đã thu hồi: chỉ quản trị viên còn xem được nội dung gốc. Mỗi hộp thư gắn với 1 chuyên viên cụ
   // thể (counselorId) để phân biệt khi cùng 1 học sinh có hộp thư riêng với từng người — mỗi tài khoản
   // giáo viên trong Tổ tâm lý chỉ nhìn thấy và xử lý đúng hộp thư gửi riêng cho tài khoản của mình.
+  const makeSecurityCode = (seed = '') => {
+    let h1 = 0x811c9dc5, h2 = 0x01000193;
+    const s = String(seed) + '|LH-COUNSEL-E2EE-AES256GCM';
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+      h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b) >>> 0;
+    }
+    const hex = (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).toUpperCase();
+    return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}`;
+  };
   const ensureCounselor = (req, ctx) => { if (!isCounselTeamTeacher(ctx.db.data, req.user)) fail(403, 'Chỉ thành viên Tổ tâm lý học đường mới có quyền truy cập chức năng Tư vấn tâm lý.'); };
   const canSeeCounsel = (t, user) => user?.role === 'admin' || t.counselorId === user?.id;
   const tv = (t, user, ctx) => {
     const { ownerKey, ...x } = t;
+    const isAdmin = user?.role === 'admin';
     const c = ctx.db.data.users.find(u => u.id === t.counselorId);
     const tm = (ctx.db.data.counselTeam || []).find(m => m.userId === t.counselorId);
     const s = !t.anonymous && t.studentId ? ctx.db.data.users.find(u => u.id === t.studentId) : null;
     return {
       ...x,
-      messages: x.messages.map(m => recallView(m, user?.role === 'admin')),
+      studentId: t.anonymous && !isAdmin ? null : x.studentId,
+      securityCode: makeSecurityCode(`${t.id}|${t.counselorId || ''}`),
+      messages: x.messages.map(m => recallView(m, isAdmin)),
       counselor: c ? { ...brief(c), avatar: c.avatar || tm?.avatar || null } : null,
       student: s ? brief(s) : null,
     };
@@ -681,7 +695,30 @@ export default function adminRoutes(r) {
   // ================= CHAT CHUNG: KIỂM DUYỆT =================
   r.get('/api/admin/school-chat', { auth: 'staff', group: C, desc: 'Luồng tin nhắn kênh chung (cả tin đã xóa / bị gắn cờ) và danh sách bị cấm chat.' }, async (req, ctx) => {
     const c = ctx.db.data.schoolChat;
-    return { locked: c.locked, lockReason: c.lockReason, muted: c.muted.map(id => ({ ...brief(ctx.db.data.users.find(u => u.id === id) || { id, name: id }), warnings: c.warnings[id] || 0 })), warnings: c.warnings, items: c.messages.slice(-200).map(m => { const u = !m.anonymous && m.userId ? ctx.db.data.users.find(x => x.id === m.userId) : null; return { ...recallView(m, req.user.role === 'admin'), avatar: m.anonymous ? null : (u?.avatar || m.avatar || null), reactions: Object.fromEntries(Object.entries(m.reactions || {}).map(([e, ids]) => [e, ids.length])) }; }) };
+    const isAdmin = req.user.role === 'admin';
+    return {
+      locked: c.locked,
+      lockReason: c.lockReason,
+      securityCode: makeSecurityCode('SCHOOL-CHAT-GLOBAL'),
+      muted: c.muted.map(id => ({ ...brief(ctx.db.data.users.find(u => u.id === id) || { id, name: id }), warnings: c.warnings[id] || 0 })),
+      warnings: c.warnings,
+      items: c.messages.slice(-200).map(m => {
+        const u = !m.anonymous && m.userId ? ctx.db.data.users.find(x => x.id === m.userId) : null;
+        const { realName, realClass, ...clean } = recallView(m, isAdmin);
+        return {
+          ...clean,
+          ...(isAdmin ? { realName, realClass } : {}),
+          avatar: m.anonymous ? null : (u?.avatar || m.avatar || null),
+          reactions: Object.fromEntries(Object.entries(m.reactions || {}).map(([e, ids]) => [e, ids.length])),
+        };
+      }),
+    };
+  });
+  r.delete('/api/admin/school-chat', { auth: 'admin', group: C, desc: 'Làm sạch toàn bộ lịch sử tin nhắn trên kênh chat chung.' }, async (req, ctx) => {
+    ctx.db.data.schoolChat.messages = [];
+    ctx.emit('school-chat:clear', {}, { all: true });
+    audit(ctx, req.user, 'Xóa toàn bộ lịch sử chat chung'); ctx.db.save();
+    return { ok: true };
   });
   r.delete('/api/admin/school-chat/:id', { auth: 'staff', group: C, desc: 'Gỡ tin nhắn không phù hợp.' }, async (req, ctx) => {
     const m = findOr404(ctx.db.data.schoolChat.messages, req.params.id, 'tin nhắn');
@@ -846,12 +883,46 @@ export default function adminRoutes(r) {
   r.get('/api/admin/settings', { auth: 'staff', group: N, desc: 'Cấu hình nhà trường: tên, khẩu hiệu, logo, biểu ngữ, module, đường dây nóng.' }, async (req, ctx) => ({ settings: ctx.db.data.settings, modules: MODULES }));
   r.put('/api/admin/settings', { auth: 'admin', group: N, desc: 'Lưu cấu hình (chỉ Ban Giám hiệu).', body: { schoolName: 'Trường THPT Lê Hoàn', slogan: '…', marquee: ['…'], modules: { aiChat: true }, logo: 'data:image/png;base64,…' } }, async (req, ctx) => {
     const s = ctx.db.data.settings, b = req.body;
-    for (const [k, n, max] of [['schoolName', 'tên trường', 120], ['shortName', 'tên ngắn', 60], ['slogan', 'khẩu hiệu', 200], ['location', 'địa phương', 60], ['schoolYear', 'năm học', 20], ['semester', 'học kỳ', 30], ['apiPin', 'mã PIN REST API', 32], ['contactPhone', 'số điện thoại liên hệ', 100], ['contactEmail', 'email liên hệ', 120], ['contactAddress', 'địa chỉ nhà trường', 250], ['facebookUrl', 'link Facebook', 250], ['linkedinUrl', 'link LinkedIn / Cổng thông tin', 250], ['zaloUrl', 'link Zalo', 250], ['creatorName', 'tác giả trang web', 120], ['siteIntro', 'giới thiệu trang web', 600]]) if (b[k] !== undefined) s[k] = str(b[k], n, { max, required: k === 'schoolName' || k === 'apiPin' });
+    const textFields = [
+      ['schoolName', 'tên trường', 120],
+      ['shortName', 'tên ngắn', 60],
+      ['slogan', 'khẩu hiệu', 200],
+      ['location', 'địa phương', 60],
+      ['schoolYear', 'năm học', 20],
+      ['semester', 'học kỳ', 30],
+      ['apiPin', 'mã PIN REST API', 32],
+      ['orgSub', 'đơn vị chủ quản', 150],
+      ['creatorName', 'tác giả trang web', 120],
+      ['creatorRole', 'vai trò tác giả', 250],
+      ['socialLabel', 'nhãn kết nối mạng xã hội', 80],
+      ['facebookUrl', 'link Facebook', 250],
+      ['linkedinUrl', 'link LinkedIn / Cổng thông tin', 250],
+      ['zaloUrl', 'link Zalo', 250],
+      ['countryLabel', 'nhãn quốc gia', 60],
+      ['verifiedTitle', 'tiêu đề huy hiệu xác thực', 60],
+      ['verifiedSub', 'phụ đề huy hiệu xác thực', 80],
+      ['introCardTitle', 'tiêu đề ô giới thiệu', 80],
+      ['siteIntro', 'giới thiệu trang web', 1000],
+      ['phoneCardTitle', 'tiêu đề ô hotline', 80],
+      ['contactPhone', 'số điện thoại liên hệ', 120],
+      ['contactPhoneSub', 'ghi chú dưới số điện thoại', 150],
+      ['emailCardTitle', 'tiêu đề ô email', 80],
+      ['contactEmail', 'email liên hệ', 120],
+      ['contactEmailSub', 'ghi chú dưới email', 150],
+      ['addressCardTitle', 'tiêu đề ô địa chỉ', 80],
+      ['contactAddress', 'địa chỉ nhà trường', 250],
+      ['contactAddressSub', 'ghi chú dưới địa chỉ', 150],
+      ['copyrightText', 'dòng bản quyền chân trang', 200],
+      ['termsContent', 'nội dung Điều khoản & Pháp lý', 2000],
+      ['privacyContent', 'nội dung Chính sách bảo vệ dữ liệu', 2000],
+      ['cookiesContent', 'nội dung Cài đặt cookies', 2000],
+    ];
+    for (const [k, n, max] of textFields) if (b[k] !== undefined) s[k] = str(b[k], n, { max, required: k === 'schoolName' });
     if (Array.isArray(b.legalLines)) s.legalLines = b.legalLines.map(m => str(m, 'thông tin pháp lý', { max: 300 })).filter(Boolean).slice(0, 6);
     if (Array.isArray(b.marquee)) s.marquee = b.marquee.map(m => str(m, 'nội dung biểu ngữ', { max: 200 })).filter(Boolean).slice(0, 10);
     if (b.modules) for (const k of Object.keys(MODULES)) if (b.modules[k] !== undefined) s.modules[k] = !!b.modules[k];
     if (Array.isArray(b.hotlines)) s.hotlines = b.hotlines.slice(0, 12).map(h => ({ name: str(h.name, 'tên đường dây', { required: true, max: 80 }), number: str(h.number, 'số điện thoại', { required: true, max: 30 }), note: str(h.note, 'ghi chú', { max: 60 }) }));
-    if (b.logo === '') s.logo = 'assets/logo-mark.svg';
+    if (b.logo === '') s.logo = 'assets/school_logo.png';
     else if (b.logo && String(b.logo).startsWith('data:')) s.logo = await ctx.storeFile(b.logo, 'logo');
     s.updatedAt = nowISO();
     ctx.emit('settings', { at: s.updatedAt }, { all: true });

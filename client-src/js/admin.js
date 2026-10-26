@@ -4,7 +4,8 @@
 import { api, session, setPortal, detect, getMode, live, showError } from './core/api.js';
 import { icon, drumArt } from './core/icons.js';
 import { $, $$, esc, toast, modal, confirmDialog, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, donut, gauge, md, store,
-  fmtDate, fmtTime, fmtDateTime, fmtSize, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
+  fmtDate, fmtTime, fmtDateTime, fmtSize, ago, vnd, num, greeting, firstName, avatar, initTheme, initDevToolsGuard, toggleTheme, DAY, sleep, attachmentsHtml, attachComposer, isNativeApp, isStandalone, fileUrl, renderAppGuide, renderAboutPage, openFooterSettingsModal,
+  chatSecurityBannerHtml, openChatSecurityModal, ensureChatPinUnlocked, promptChatPinModal, bindPrivacyBlurBody, lockChatSession } from './core/ui.js';
 
 const aiOfflineNote = (ai) => getMode() === 'demo' && !ai?.enabled && isNativeApp() ? `<div class="card soft small row nowrap" style="padding:10px 14px;gap:8px">${icon('info')}<span>App đang ở <b>bản trải nghiệm</b> nên dùng chế độ cơ bản. Đăng xuất → <b>Máy chủ trường</b> → nhập địa chỉ máy chủ để dùng AI của nhà trường.</span></div>` : '';
 const aiPill = (ai) => ai?.enabled ? `<span class="badge violet" title="${esc(ai.label || '')}">${icon('sparkles')} AI thật đang bật</span>` : '<span class="badge" title="Thêm khóa API trong .env để bật AI">Bộ luật · chưa bật AI</span>';
@@ -85,7 +86,7 @@ const TONE = { pending: '', verifying: 'warn', reminded: 'info', disciplined: 'b
 const SEV_TONE = { low: '', medium: 'warn', high: 'bad', critical: 'critical' };
 const LEVEL = { red: ['Khẩn cấp', 'critical', 'var(--bad)'], orange: ['Cao', 'bad', 'var(--accent)'], yellow: ['Theo dõi', 'warn', 'var(--warn)'] };
 
-const staffLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? 'index.html?mobile=1&switch=1' : 'staff.html');
+const staffLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() || isStandalone() ? 'index.html?mobile=1&switch=1' : 'staff.html');
 
 // ---------------------------------------------------------------------------
 async function boot() {
@@ -330,12 +331,21 @@ function broadcastModal() {
 // cùng giao diện danh sách hội thoại + khung chat, chỉ khác nguồn dữ liệu (api/admin/counseling
 // hay api/teacher-chat/threads) và cách hiển thị từng loại hội thoại.
 async function threadsInbox(view, tab) {
-  let current = null;
+  let current = null, curThread = null;
+  const openSecModal = () => openChatSecurityModal({
+    channel: tab === 'counsel' ? 'counseling' : 'teacher',
+    title: tab === 'counsel' ? 'Hộp thư Tư vấn tâm lý 1-1' : 'Hộp thư Tin nhắn Học sinh ↔ Giáo viên',
+    peerName: tab === 'counsel' ? (curThread?.alias || 'Học sinh') : (curThread?.student?.name || 'Học sinh'),
+    securityCode: curThread?.securityCode || (tab === 'counsel' ? 'E2EE-COUNSEL-256' : 'E2EE-TEACHER-256'),
+    userId: S.user?.id,
+    isAnon: !!curThread?.anonymous,
+    onChanged: (ev) => { if (ev?.lockedNow) { current = null; curThread = null; $('#cl')?.classList.remove('show-chat'); draw(); } else if (current) openT(); },
+  });
   const delThread = async (id, label = '') => {
     if (!await confirmDialog({ title: 'Xóa cuộc trò chuyện', message: `Xóa cuộc trò chuyện${label ? ` với <b>${esc(label)}</b>` : ''} khỏi danh sách?`, ok: 'Xóa', tone: 'danger' })) return;
     try {
       await api.del(tab === 'counsel' ? `api/admin/counseling/${id}` : `api/teacher-chat/threads/${id}`);
-      if (current === id) { current = null; $('#cl')?.classList.remove('show-chat'); }
+      if (current === id) { current = null; curThread = null; $('#cl')?.classList.remove('show-chat'); }
       toast('Đã xóa cuộc trò chuyện.', 'ok');
       refreshCounts();
       await draw();
@@ -344,14 +354,24 @@ async function threadsInbox(view, tab) {
   const draw = async () => {
     const list = tab === 'counsel' ? (await api.get('api/admin/counseling')).items : (await api.get('api/teacher-chat/threads')).items;
     view.innerHTML = (tab === 'counsel'
-      ? head('Tư vấn tâm lý', 'Phản hồi học sinh theo thời gian thực. Đánh dấu các trường hợp cần gặp trực tiếp để can thiệp kịp thời.')
-      : head('Chat với giáo viên', 'Tin nhắn học sinh gửi tới GVCN, giáo viên bộ môn và tổ tư vấn: hỏi bài, xin nghỉ phép, nhờ hỗ trợ.')) + `
-      <section class="card chat-layout ${!list.length && !current ? 'is-empty' : ''}" id="cl"><div class="threads"><div class="threads-head"><span class="xs muted strong">${list.length ? `${list.length} cuộc trò chuyện` : 'Danh sách trò chuyện'}</span></div>${list.length ? `<div class="list">${list.map(t => tab === 'counsel'
-        ? `<div class="item click ${current === t.id ? 'active' : ''}" data-t="${t.id}">${!t.anonymous && t.student ? avatar(t.student) : `<span class="avatar sq" style="background:${t.anonymous ? 'var(--violet)' : 'var(--brand)'}">${icon(t.anonymous ? 'eyeOff' : 'user')}</span>`}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.alias)}</b><span class="xs muted nowrap">${ago(t.updatedAt)}</span></div><div class="xs muted truncate">Gửi tới ${esc(t.counselor?.name || 'chuyên viên')}</div><div class="xs truncate ink2" style="margin-top:2px">${t.last?.recalled && !t.last?.text ? '<i>Tin nhắn đã thu hồi</i>' : esc(t.last?.text || (t.last?.attachments?.length ? '📎 Tệp đính kèm' : ''))}</div><div class="row" style="gap:4px;margin-top:2px">${t.flagged ? badge('Cần gặp trực tiếp', 'bad') : ''}${t.status === 'closed' ? badge('Đã đóng') : ''}</div></div>${t.unreadStaff ? `<span class="count-pill">${t.unreadStaff}</span>` : ''}<button class="btn icon ghost sm" data-del-t="${t.id}" data-del-name="${esc(t.alias)}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>`
-        : `<div class="item click ${current === t.id ? 'active' : ''}" data-t="${t.id}">${t.anonymous ? `<span class="avatar sq" style="background:var(--violet)">${icon('eyeOff')}</span>` : avatar(t.student)}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.student?.name)}</b><span class="xs muted nowrap">${t.last ? ago(t.last.at) : ''}</span></div><div class="xs muted truncate">${esc(t.student?.className)} · với ${esc(t.teacher?.name)}</div><div class="xs truncate ink2" style="margin-top:2px">${t.last?.recalled && !t.last?.text ? '<i>Tin nhắn đã thu hồi</i>' : esc(t.last?.text || (t.last?.attachments?.length ? '📎 Tệp đính kèm' : ''))}</div></div>${t.unread ? `<span class="count-pill">${t.unread}</span>` : ''}${(isAdmin() || t.teacherId === S.user.id) ? `<button class="btn icon ghost sm" data-del-t="${t.id}" data-del-name="${esc(t.student?.name || '')}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button>` : ''}</div>`).join('')}</div>` : empty('Chưa có cuộc trò chuyện', 'Khi học sinh nhắn tin, cuộc trò chuyện sẽ hiển thị tại đây.', 'chat')}</div><div class="chat" id="cp"></div></section>`;
-    $$('[data-t]', view).forEach(el => el.onclick = () => { current = el.dataset.t; openT(); });
+      ? head('Tư vấn tâm lý', 'Phản hồi học sinh theo thời gian thực — bấm vào cuộc trò chuyện và nhập Mã PIN để mở (Mã hóa E2EE & Cô lập hộp thư 1-1).', `<button class="btn soft" id="secInboxBtn">${icon('shieldCheck')} Bảo mật & PIN</button>`)
+      : head('Chat với giáo viên', 'Tin nhắn học sinh gửi tới GVCN, giáo viên bộ môn và tổ tư vấn — bấm vào cuộc trò chuyện và nhập Mã PIN để mở (Mã hóa E2EE & Cô lập hộp thư 1-1).', `<button class="btn soft" id="secInboxBtn">${icon('shieldCheck')} Bảo mật & PIN</button>`)) + `
+      <section class="card chat-layout ${!list.length && !current ? 'is-empty' : ''}" id="cl"><div class="threads"><div class="threads-head"><span class="xs muted strong">${icon('shieldCheck')} ${list.length ? `${list.length} cuộc trò chuyện` : 'Danh sách trò chuyện'}</span></div>${list.length ? `<div class="list">${list.map(t => tab === 'counsel'
+        ? `<div class="item click ${current === t.id ? 'active' : ''}" data-t="${t.id}" data-t-name="${esc(t.alias)}">${!t.anonymous && t.student ? avatar(t.student) : `<span class="avatar sq" style="background:${t.anonymous ? 'var(--violet)' : 'var(--brand)'}">${icon(t.anonymous ? 'eyeOff' : 'user')}</span>`}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.alias)}</b><span class="xs muted nowrap">${ago(t.updatedAt)}</span></div><div class="xs muted truncate">Gửi tới ${esc(t.counselor?.name || 'chuyên viên')}</div><div class="xs truncate ink2" style="margin-top:2px">${current === t.id ? (t.last?.recalled && !t.last?.text ? '<i>Tin nhắn đã thu hồi</i>' : esc(t.last?.text || (t.last?.attachments?.length ? '📎 Tệp đính kèm' : ''))) : `<span style="color:var(--brand);font-weight:600">${icon('lock')} Nhấn vào & nhập mã PIN để mở chat</span>`}</div><div class="row" style="gap:4px;margin-top:2px">${t.flagged ? badge('Cần gặp trực tiếp', 'bad') : ''}${t.status === 'closed' ? badge('Đã đóng') : ''}</div></div>${t.unreadStaff ? `<span class="count-pill">${t.unreadStaff}</span>` : ''}<button class="btn icon ghost sm" data-del-t="${t.id}" data-del-name="${esc(t.alias)}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>`
+        : `<div class="item click ${current === t.id ? 'active' : ''}" data-t="${t.id}" data-t-name="${esc(t.student?.name || 'Học sinh')}">${t.anonymous ? `<span class="avatar sq" style="background:var(--violet)">${icon('eyeOff')}</span>` : avatar(t.student)}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.student?.name)}</b><span class="xs muted nowrap">${t.last ? ago(t.last.at) : ''}</span></div><div class="xs muted truncate">${esc(t.student?.className)} · với ${esc(t.teacher?.name)}</div><div class="xs truncate ink2" style="margin-top:2px">${current === t.id ? (t.last?.recalled && !t.last?.text ? '<i>Tin nhắn đã thu hồi</i>' : esc(t.last?.text || (t.last?.attachments?.length ? '📎 Tệp đính kèm' : ''))) : `<span style="color:var(--brand);font-weight:600">${icon('lock')} Nhấn vào & nhập mã PIN để mở chat</span>`}</div></div>${t.unread ? `<span class="count-pill">${t.unread}</span>` : ''}${(isAdmin() || t.teacherId === S.user.id) ? `<button class="btn icon ghost sm" data-del-t="${t.id}" data-del-name="${esc(t.student?.name || '')}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button>` : ''}</div>`).join('')}</div>` : empty('Chưa có cuộc trò chuyện', 'Khi học sinh nhắn tin, cuộc trò chuyện sẽ hiển thị tại đây.', 'chat')}</div><div class="chat" id="cp"></div></section>`;
+    if ($('#secInboxBtn', view)) $('#secInboxBtn', view).onclick = openSecModal;
+    $$('[data-t]', view).forEach(el => el.onclick = () => {
+      const tid = el.dataset.t;
+      const tname = el.dataset.tName || 'Học sinh';
+      promptChatPinModal({
+        userId: S.user?.id,
+        peerName: tname,
+        titleLabel: tab === 'counsel' ? 'Tư vấn tâm lý' : 'Chat với Học sinh',
+        onSuccess: () => { current = tid; openT(); },
+      });
+    });
     $$('[data-del-t]', view).forEach(b => b.onclick = (e) => { e.stopPropagation(); delThread(b.dataset.delT, b.dataset.delName); });
-    if (current) openT(); else $('#cp').innerHTML = empty('Chọn một cuộc trò chuyện', 'Tin nhắn sẽ hiển thị tại đây.', 'chat');
+    if (current) openT(); else $('#cp').innerHTML = empty('Chọn một cuộc trò chuyện', 'Nhấn vào cuộc trò chuyện ở danh sách và nhập Mã PIN 4 chữ số để mở.', 'lock');
   };
   const openT = async () => {
     refreshCounts(500);
@@ -360,7 +380,9 @@ async function threadsInbox(view, tab) {
     const cp = $('#cp');
     if (tab === 'counsel') {
       const { item: t } = await api.get(`api/admin/counseling/${current}`);
+      curThread = t;
       cp.innerHTML = `<div class="chat-head"><button class="btn icon ghost sm back-btn" id="back">${icon('arrowLeft')}</button>${!t.anonymous && t.student ? avatar(t.student) : `<span class="avatar sq" style="background:${t.anonymous ? 'var(--violet)' : 'var(--brand)'}">${icon(t.anonymous ? 'eyeOff' : 'user')}</span>`}<div class="grow" style="min-width:0"><b class="truncate">${esc(t.alias)}</b><div class="xs muted truncate">Gửi tới ${esc(t.counselor?.name || 'chuyên viên')} · ${t.messages.length} tin nhắn</div></div><label class="switch" title="Đánh dấu cần gặp trực tiếp"><input type="checkbox" id="flag" ${t.flagged ? 'checked' : ''}><span class="track"></span><span class="xs">Gặp trực tiếp</span></label><button class="btn icon ghost sm" id="delThread" style="color:var(--bad)" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>
+        ${chatSecurityBannerHtml({ securityCode: t.securityCode, isAnon: !!t.anonymous, channel: 'counseling', userId: S.user?.id })}
         <div class="chat-body" id="cb">${t.messages.map(m => `<div class="msg ${m.from !== 'student' ? 'me' : ''}"><div><div class="who">${m.from === 'student' ? esc(t.alias) : esc(m.name || 'Chuyên viên')}${m.guard ? badge('AI Guard: ' + m.guard.categories[0], LEVEL[m.guard.level][1]) : ''}</div>${sbubble(m)}<div class="time">${fmtDateTime(m.at)}${recallLink(m, m.from === 'counselor' && (m.byId ? m.byId === S.user.id : m.name === S.user.name))}</div></div></div>`).join('')}</div>
         <form class="chat-input" id="cf"><textarea id="ct" rows="1" placeholder="Phản hồi học sinh…"></textarea><button class="btn icon">${icon('send')}</button></form>`;
       $('#flag').onchange = async (e) => { await api.patch(`api/admin/counseling/${t.id}`, { flagged: e.target.checked }); toast(e.target.checked ? 'Đã đánh dấu cần gặp trực tiếp.' : 'Đã bỏ đánh dấu.', 'ok'); };
@@ -369,9 +391,11 @@ async function threadsInbox(view, tab) {
       $('#cb').onclick = async (e) => { const b = e.target.closest('[data-recall]'); if (b && await askRecall(`api/admin/counseling/${t.id}/messages/${b.dataset.recall}/recall`)) openT(); };
     } else {
       const { item: t } = await api.get(`api/teacher-chat/threads/${current}`);
+      curThread = t;
       const mine = t.teacherId === S.user.id;
       cp.innerHTML = `<div class="chat-head"><button class="btn icon ghost sm back-btn" id="back">${icon('arrowLeft')}</button>${t.anonymous ? `<span class="avatar sq" style="background:var(--violet)">${icon('eyeOff')}</span>` : avatar(t.student)}<div class="grow" style="min-width:0"><b class="truncate">${esc(t.student.name)}</b><div class="xs muted truncate">${esc(t.student.className)} · với ${esc(t.teacher.name)}</div></div>${t.anonymous ? badge('Ẩn danh', 'violet') : ''}${(isAdmin() || mine) ? `<button class="btn icon ghost sm" id="delThread" style="color:var(--bad)" title="Xóa cuộc trò chuyện">${icon('trash')}</button>` : ''}</div>
-        <div class="chat-body" id="cb">${t.messages.map(m => `<div class="msg ${m.from === 'teacher' ? 'me' : ''}"><div><div class="bubble">${m.kind === 'leave' ? `<div class="leave-card"><b>${icon('file')} Đơn xin nghỉ học</b><div class="small">Ngày ${esc(m.leave.date.split('-').reverse().join('/'))} · ${esc(m.leave.session)}</div><div class="small">Lý do: ${esc(m.text)}</div><div class="row" style="gap:6px;margin-top:8px">${m.leave.status === 'pending' && mine ? `<button class="btn ok sm" data-leave="${m.id}" data-ok="1">Duyệt</button><button class="btn danger soft sm" data-leave="${m.id}" data-ok="0">Từ chối</button>` : badge({ pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Không duyệt' }[m.leave.status], { pending: 'warn', approved: 'ok', rejected: 'bad' }[m.leave.status])}</div></div>${m.recalled ? recallTag(m) : ''}` : '§'}</div><div class="time">${fmtDateTime(m.at)}${recallLink(m, mine && m.from === 'teacher')}</div></div></div>`.replace('<div class="bubble">§</div>', () => sbubble(m)).replace('<div class="bubble">', `<div class="bubble ${m.kind === 'leave' && m.recalled ? 'was-recalled' : ''}">`)).join('')}</div>
+        ${chatSecurityBannerHtml({ securityCode: t.securityCode, isAnon: !!t.anonymous, channel: 'teacher', userId: S.user?.id })}
+        <div class="chat-body" id="cb">${t.messages.map(m => `<div class="msg ${m.from === 'teacher' ? 'me' : ''}"><div><div class="bubble">${m.kind === 'leave' ? `<div class="leave-card"><b>${icon('file')} Đơn xin nghỉ học</b><div class="small">Ngày ${esc(m.leave.date.split('-').reverse().join('/'))} · ${esc(m.leave.session)}</div><div class="small">Lý do: ${esc(m.text)}</div><div class="row" style="gap:6px;margin-top:8px">${m.leave.status === 'pending' && mine ? `<button class="btn ok sm" data-leave="${m.id}" data-ok="1">Duyệt</button><button class="btn danger soft sm" data-leave="${m.id}" data-ok="0">Từ chối</button>` : badge({ pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Không duyệt' }[m.leave.status], { pending: 'warn', approved: 'ok', rejected: 'bad' }[m.leave.status])}</div></div>${m.recalled ? recallTag(m) : ''}` : '§'}</div>${m.scamWarn && !m.recalled ? `<div class="xs" style="color:var(--bad);margin-top:2px;font-weight:600">${icon('alert')} ${esc(m.scamWarn)}</div>` : ''}<div class="time">${fmtDateTime(m.at)}${recallLink(m, mine && m.from === 'teacher')}</div></div></div>`.replace('<div class="bubble">§</div>', () => sbubble(m)).replace('<div class="bubble">', `<div class="bubble ${m.kind === 'leave' && m.recalled ? 'was-recalled' : ''}">`)).join('')}</div>
         ${mine ? `<form class="chat-input" id="cf"><textarea id="ct" rows="1" placeholder="Trả lời học sinh…"></textarea><button class="btn icon">${icon('send')}</button></form>` : '<div class="small muted" style="padding:12px 16px;border-top:1px solid var(--line)">Bạn đang xem với quyền quản trị (chỉ đọc).</div>'}`;
       if ($('#delThread')) $('#delThread').onclick = () => delThread(t.id, t.student?.name || '');
       $$('[data-leave]', cp).forEach(b => b.onclick = async () => { await api.post(`api/teacher-chat/threads/${t.id}/messages`, { kind: 'leave-reply', messageId: b.dataset.leave, approve: b.dataset.ok === '1' }); toast('Đã phản hồi đơn xin nghỉ.', 'ok'); openT(); });
@@ -379,7 +403,10 @@ async function threadsInbox(view, tab) {
       $('#cb').onclick = async (e) => { const b = e.target.closest('[data-recall]'); if (b && await askRecall(`api/teacher-chat/threads/${t.id}/messages/${b.dataset.recall}/recall`)) openT(); };
     }
     const cb = $('#cb'); cb.scrollTop = cb.scrollHeight;
-    $('#back').onclick = () => $('#cl').classList.remove('show-chat');
+    bindPrivacyBlurBody(cb, S.user?.id);
+    if ($('[data-chat-sec-open]', cp)) $('[data-chat-sec-open]', cp).onclick = openSecModal;
+    if ($('[data-chat-lock-now]', cp)) $('[data-chat-lock-now]', cp).onclick = () => { lockChatSession(S.user?.id); current = null; curThread = null; $('#cl')?.classList.remove('show-chat'); draw(); toast('Đã khóa cuộc trò chuyện.', 'ok', 1800); };
+    $('#back').onclick = () => { current = null; curThread = null; $('#cl').classList.remove('show-chat'); draw(); };
     refreshCounts();
   };
   const bindSend = (fn) => {
@@ -699,18 +726,37 @@ const PAGES = {
       const hadFocus = document.activeElement?.id === 'ct';
       const reasonDraft = document.activeElement?.id === 'reason' ? $('#reason', view)?.value : null;
       const r = await api.get('api/admin/school-chat');
-      view.innerHTML = head('Quản trị kênh chat chung toàn trường', 'Theo dõi luồng tin nhắn công cộng, gỡ tin không phù hợp, cảnh cáo hoặc tạm cấm tài khoản vi phạm.') + `
+      const openModSec = () => openChatSecurityModal({
+        channel: 'school',
+        title: 'Quản trị Kênh Chat chung toàn trường',
+        peerName: 'Toàn trường',
+        securityCode: r.securityCode || 'E2EE-SCHOOL-CHAT',
+        userId: S.user?.id,
+        isAnon: false,
+        onChanged: () => draw(),
+      });
+      view.innerHTML = head('Quản trị kênh chat chung toàn trường', 'Theo dõi luồng tin nhắn công cộng, gỡ tin không phù hợp, cảnh cáo hoặc tạm cấm tài khoản vi phạm.', `<button class="btn soft" id="secModBtn">${icon('shieldCheck')} Bảo mật kênh chat</button>${r.items.length && isAdmin() ? `<button class="btn danger soft" id="clrAllSc">${icon('trash')} Làm sạch kênh chat</button>` : ''}`) + `
       <div class="grid g-main">
         <section class="card chat" style="height:calc(100dvh - 210px);min-height:520px"><div class="chat-head"><span class="avatar sq" style="background:linear-gradient(135deg,#1747c9,#0a84b8)">${icon('chats')}</span><div class="grow"><b>Kênh chung học sinh</b><div class="xs muted">${r.items.length} tin nhắn gần nhất · ${r.items.filter(m => m.flagged).length} bị lọc · ${r.items.filter(m => m.deleted).length} đã gỡ</div></div>${r.locked ? badge('Đang khóa', 'warn') : badge('Đang mở', 'ok')}</div>
-          <div class="chat-body" id="cb">${r.items.map(m => `<div class="msg" style="max-width:100%"><span>${m.anonymous ? `<span class="avatar sm" style="background:var(--violet);color:#fff">${icon('eyeOff')}</span>` : avatar({ id: m.userId, name: m.name, avatar: m.avatar }, 'sm')}</span><div style="min-width:0;flex:1"><div class="who"><b style="color:${m.anonymous ? 'var(--violet)' : 'var(--ink)'}">${esc(m.name)}</b><span>${esc(m.className)}</span>${m.anonymous ? badge('Ẩn danh', 'violet') : ''}<span>${fmtTime(m.at)} · ${fmtDate(m.at)}</span>${m.flagged ? badge('Đã lọc từ ngữ', 'warn') : ''}${m.deleted ? badge('Đã gỡ', 'bad') : ''}${m.recalled ? badge('Đã thu hồi', 'warn') : ''}${r.warnings[m.userId] ? badge(`${r.warnings[m.userId]} cảnh cáo`, 'bad') : ''}</div><div class="row nowrap" style="gap:8px;align-items:flex-start">${m.deleted ? `<div class="bubble deleted">${bubbleBody(m)}</div>` : sbubble(m, m.flagged ? 'border-color:var(--warn)' : '')}${m.role !== 'staff' && !m.deleted ? `<div class="row nowrap" style="gap:2px;flex:none"><button class="btn icon ghost sm" data-del="${m.id}" title="Gỡ tin nhắn">${icon('trash')}</button><button class="btn icon ghost sm" data-warn="${m.userId}" title="Cảnh cáo">${icon('alert')}</button><button class="btn icon ghost sm" data-mute="${m.userId}" title="Cấm chat">${icon('volumeX')}</button></div>` : ''}</div></div></div>`).join('')}</div>
+          ${chatSecurityBannerHtml({ securityCode: r.securityCode, isAnon: false, channel: 'school', userId: S.user?.id })}
+          <div class="chat-body" id="cb">${r.items.map(m => `<div class="msg" style="max-width:100%"><span>${m.anonymous ? `<span class="avatar sm" style="background:var(--violet);color:#fff">${icon('eyeOff')}</span>` : avatar({ id: m.userId, name: m.name, avatar: m.avatar }, 'sm')}</span><div style="min-width:0;flex:1"><div class="who"><b style="color:${m.anonymous ? 'var(--violet)' : 'var(--ink)'}">${esc(m.name)}</b><span>${esc(m.className)}</span>${m.anonymous ? badge('Ẩn danh', 'violet') : ''}${isAdmin() && m.anonymous && m.realName ? badge(`Thực: ${m.realName}${m.realClass ? ' · ' + m.realClass : ''}`, 'info') : ''}<span>${fmtTime(m.at)} · ${fmtDate(m.at)}</span>${m.flagged ? badge('Đã lọc từ ngữ', 'warn') : ''}${m.scamWarn ? badge('Nghi vấn lừa đảo', 'bad') : ''}${m.deleted ? badge('Đã gỡ', 'bad') : ''}${m.recalled ? badge('Đã thu hồi', 'warn') : ''}${r.warnings[m.userId] ? badge(`${r.warnings[m.userId]} cảnh cáo`, 'bad') : ''}</div><div class="row nowrap" style="gap:8px;align-items:flex-start">${m.deleted ? `<div class="bubble deleted">${bubbleBody(m)}</div>` : sbubble(m, m.flagged ? 'border-color:var(--warn)' : '')}${m.role !== 'staff' && !m.deleted ? `<div class="row nowrap" style="gap:2px;flex:none"><button class="btn icon ghost sm" data-del="${m.id}" title="Gỡ tin nhắn">${icon('trash')}</button><button class="btn icon ghost sm" data-warn="${m.userId}" title="Cảnh cáo">${icon('alert')}</button><button class="btn icon ghost sm" data-mute="${m.userId}" title="Cấm chat">${icon('volumeX')}</button></div>` : ''}</div></div></div>`).join('')}</div>
           <form class="chat-input" id="cf"><textarea id="ct" rows="1" placeholder="Gửi thông báo vào kênh với tư cách nhà trường…"></textarea><button class="btn icon">${icon('send')}</button></form></section>
         <aside class="stack lg">
           <section class="card pad stack"><b>${icon('lock')} Khóa kênh chat</b><p class="small ink2">Tạm dừng học sinh gửi tin (ví dụ trong giờ kiểm tra).</p><input class="input" id="reason" placeholder="Lý do hiển thị cho học sinh" value="${esc(reasonDraft ?? r.lockReason ?? '')}"><button class="btn ${r.locked ? 'ok' : 'danger soft'}" id="lock">${r.locked ? `${icon('unlock')} Mở lại kênh chat` : `${icon('lock')} Khóa kênh chat`}</button></section>
           <section class="card"><div class="card-head"><h2>${icon('volumeX')} Đang bị cấm chat (${r.muted.length})</h2></div><div class="card-body list">${r.muted.map(u => `<div class="item">${avatar(u, 'sm')}<div class="grow"><b class="small">${esc(u.name)}</b><div class="xs muted">${u.warnings} cảnh cáo</div></div><button class="btn soft sm" data-unmute="${u.id}">Bỏ cấm</button></div>`).join('') || '<span class="small muted">Không có tài khoản bị cấm</span>'}</div></section>
-          <section class="card pad stack"><b>${icon('shieldCheck')} Bộ lọc tự động</b><p class="small ink2">Ngôn từ phản cảm được che bằng dấu *. Sau 3 lần vi phạm, tài khoản tự động bị cấm chat. Bật/tắt trong mục AI Guard.</p></section>
+          <section class="card pad stack"><b>${icon('shieldCheck')} Bảo mật & Bộ lọc tự động</b><p class="small ink2">Tin nhắn được mã hóa AES-256-GCM. Ngôn từ phản cảm tự động che bằng dấu *, quét liên kết lừa đảo tự động, cấm chat sau 3 lần vi phạm.</p></section>
         </aside>
       </div>`;
       const cb = $('#cb'); cb.scrollTop = cb.scrollHeight;
+      bindPrivacyBlurBody(cb, S.user?.id);
+      if ($('#secModBtn', view)) $('#secModBtn', view).onclick = openModSec;
+      if ($('[data-chat-sec-open]', view)) $('[data-chat-sec-open]', view).onclick = openModSec;
+      if ($('#clrAllSc', view)) $('#clrAllSc', view).onclick = async () => {
+        if (!await confirmDialog({ title: 'Làm sạch toàn bộ kênh chat chung?', message: 'Xóa toàn bộ lịch sử tin nhắn hiện tại trên kênh chat chung toàn trường?', ok: 'Làm sạch ngay', tone: 'danger' })) return;
+        await api.del('api/admin/school-chat');
+        toast('Đã làm sạch toàn bộ lịch sử kênh chat chung.', 'ok');
+        draw();
+      };
       if (draft && $('#ct')) $('#ct').value = draft;
       if (hadFocus && $('#ct')) $('#ct').focus();
       $$('[data-del]', view).forEach(b => b.onclick = async () => { await api.del(`api/admin/school-chat/${b.dataset.del}`); toast('Đã gỡ tin nhắn.', 'ok'); draw(); });
@@ -1126,31 +1172,68 @@ const PAGES = {
   // ---------------------------------------------------------------- Cấu hình
   async settings(view) {
     const { settings: s, modules } = await api.get('api/admin/settings');
-    view.innerHTML = head('Quản lý giao diện & cấu hình nhà trường', 'Cập nhật nhận diện, biểu ngữ chạy, bật/tắt từng module trên Cổng Học Sinh và danh bạ đường dây nóng.') + `
+    view.innerHTML = head('Quản lý giao diện & cấu hình nhà trường', 'Cập nhật nhận diện, chân trang đăng nhập (/hocsinhlogin), biểu ngữ chạy, bật/tắt từng module trên Cổng Học Sinh và danh bạ đường dây nóng.', isAdmin() ? `<button type="button" class="btn soft" id="btnFooterModal">${icon('edit')} Chỉnh sửa Chân trang & Giới thiệu</button>` : '') + `
     ${!isAdmin() ? `<div class="badge warn" style="height:auto;padding:10px 14px;border-radius:12px;white-space:normal">${icon('lock')} Chỉ tài khoản Ban Giám hiệu (admin) mới lưu được cấu hình. Bạn đang xem ở chế độ chỉ đọc.</div>` : ''}
     <form id="cf" class="stack lg">
       <div class="grid g-main">
         <section class="card"><div class="card-head"><h2>${icon('building')} Nhận diện nhà trường</h2></div><div class="card-body field-row">
           ${fieldHtml({ name: 'schoolName', label: 'Tên trường', value: s.schoolName, required: true })}${fieldHtml({ name: 'shortName', label: 'Tên ngắn', value: s.shortName })}
+          ${fieldHtml({ name: 'orgSub', label: 'Đơn vị chủ quản (dòng dưới tên trường ở chân trang)', value: s.orgSub || 'SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH GIA LAI', full: true })}
           ${fieldHtml({ name: 'slogan', label: 'Khẩu hiệu', value: s.slogan, full: true })}
           ${fieldHtml({ name: 'location', label: 'Địa phương', value: s.location })}${fieldHtml({ name: 'schoolYear', label: 'Năm học', value: s.schoolYear })}${fieldHtml({ name: 'semester', label: 'Học kỳ', value: s.semester })}
           ${fieldHtml({ name: 'apiPin', label: 'Mã PIN bảo vệ trang REST API', value: s.apiPin || '123456', required: true })}
-          ${fieldHtml({ name: 'contactPhone', label: 'Hotline chân trang đăng nhập', value: s.contactPhone || '0269 3846 359 · Khẩn cấp: 111' })}
-          ${fieldHtml({ name: 'contactEmail', label: 'Email chân trang đăng nhập', value: s.contactEmail || 'thptlehoan@sgddt.gialai.gov.vn' })}
-          ${fieldHtml({ name: 'contactAddress', label: 'Địa chỉ nhà trường (chân trang đăng nhập)', value: s.contactAddress || 'Đường Trần Hưng Đạo, Thị trấn Chư Ty, Huyện Đức Cơ, Tỉnh Gia Lai, Việt Nam', full: true })}
-          ${fieldHtml({ name: 'facebookUrl', label: 'Link Facebook (nút f chân trang)', value: s.facebookUrl || 'https://facebook.com', placeholder: 'https://facebook.com/...' })}
-          ${fieldHtml({ name: 'linkedinUrl', label: 'Link LinkedIn / Cổng thông tin (nút in chân trang)', value: s.linkedinUrl || 'https://gialai.edu.vn', placeholder: 'https://gialai.edu.vn' })}
-          ${fieldHtml({ name: 'zaloUrl', label: 'Link Zalo (nút Zalo chân trang)', value: s.zaloUrl || 'https://zalo.me', placeholder: 'https://zalo.me/...' })}
-          ${fieldHtml({ name: 'creatorName', label: 'Tác giả / Người tạo trang web', value: s.creatorName || 'Vũ Nguyễn An Khang', full: true })}
-          ${fieldHtml({ name: 'siteIntro', label: 'Giới thiệu trang web (hiển thị ở chân trang & mục Giới thiệu)', type: 'textarea', rows: 3, value: s.siteIntro || 'Cổng Học Đường Số Trường THPT Lê Hoàn là nền tảng trực tuyến hỗ trợ học sinh tố giác vi phạm ẩn danh, tư vấn tâm lý học đường 24/7, kết nối thầy cô, thi trắc nghiệm pháp luật và tích hợp trí tuệ nhân tạo (AI) phòng chống lừa đảo không gian mạng.', full: true })}
           ${fieldHtml({ name: 'logo', label: 'Logo chính thức', type: 'image', value: s.logo, full: true })}
           ${fieldHtml({ name: 'marquee', label: 'Biểu ngữ thông báo chạy (mỗi dòng một thông điệp)', type: 'textarea', rows: 4, value: s.marquee.join('\n'), full: true })}
         </div></section>
         <section class="card"><div class="card-head"><h2>${icon('sliders')} Module trên Cổng Học Sinh</h2></div><div class="card-body stack" style="gap:10px">${Object.entries(modules).map(([k, l]) => `<label class="switch row between" style="width:100%"><span class="small">${esc(l)}</span><span class="row nowrap"><input type="checkbox" name="mod_${k}" ${s.modules[k] !== false ? 'checked' : ''}><span class="track"></span></span></label>`).join('')}</div></section>
       </div>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>${icon('globe')} Chân trang Đăng nhập Học sinh (/hocsinhlogin) & Giới thiệu</h2>
+          <span class="xs muted">Hiển thị ở cuối trang đăng nhập Học sinh và mục Giới thiệu trang web</span>
+        </div>
+        <div class="card-body field-row">
+          ${fieldHtml({ name: 'creatorName', label: 'Tác giả / Người tạo trang web', value: s.creatorName || 'Vũ Nguyễn An Khang' })}
+          ${fieldHtml({ name: 'creatorRole', label: 'Vai trò / mô tả tác giả', value: s.creatorRole || 'Thiết kế giao diện, kiến trúc bảo mật & phát triển toàn diện Web · App · AI' })}
+          ${fieldHtml({ name: 'socialLabel', label: 'Nhãn kết nối mạng xã hội', value: s.socialLabel || 'KẾT NỐI NHÀ TRƯỜNG' })}
+          ${fieldHtml({ name: 'countryLabel', label: 'Nhãn quốc gia / ngôn ngữ', value: s.countryLabel || 'Việt Nam' })}
+          ${fieldHtml({ name: 'verifiedTitle', label: 'Huy hiệu xác thực (Dòng 1)', value: s.verifiedTitle || 'ĐÃ ĐĂNG KÝ' })}
+          ${fieldHtml({ name: 'verifiedSub', label: 'Huy hiệu xác thực (Dòng 2)', value: s.verifiedSub || 'CỔNG HỌC ĐƯỜNG SỐ' })}
+          ${fieldHtml({ name: 'facebookUrl', label: 'Link Facebook (nút f chân trang)', value: s.facebookUrl || 'https://facebook.com', placeholder: 'https://facebook.com/...' })}
+          ${fieldHtml({ name: 'linkedinUrl', label: 'Link LinkedIn / Cổng thông tin (nút in)', value: s.linkedinUrl || 'https://gialai.edu.vn', placeholder: 'https://gialai.edu.vn' })}
+          ${fieldHtml({ name: 'zaloUrl', label: 'Link Zalo (nút Zalo chân trang)', value: s.zaloUrl || 'https://zalo.me', placeholder: 'https://zalo.me/...' })}
+          ${fieldHtml({ name: 'introCardTitle', label: 'Tiêu đề Ô 1 (Giới thiệu)', value: s.introCardTitle || 'GIỚI THIỆU TRANG WEB' })}
+          ${fieldHtml({ name: 'siteIntro', label: 'Nội dung Ô 1 (Giới thiệu trang web)', type: 'textarea', rows: 3, value: s.siteIntro || 'Cổng Học Đường Số Trường THPT Lê Hoàn là nền tảng trực tuyến hỗ trợ học sinh tố giác vi phạm ẩn danh, tư vấn tâm lý học đường 24/7, kết nối thầy cô, thi trắc nghiệm pháp luật và tích hợp trí tuệ nhân tạo (AI) phòng chống lừa đảo không gian mạng.', full: true })}
+          ${fieldHtml({ name: 'phoneCardTitle', label: 'Tiêu đề Ô 2 (Hotline)', value: s.phoneCardTitle || 'HOTLINE & KHẨN CẤP 24/7' })}
+          ${fieldHtml({ name: 'contactPhone', label: 'Số điện thoại Ô 2 (Hotline)', value: s.contactPhone || '0269 3846 359 · Khẩn cấp: 111' })}
+          ${fieldHtml({ name: 'contactPhoneSub', label: 'Ghi chú phụ Ô 2 (dưới số điện thoại)', value: s.contactPhoneSub || 'Tiếp nhận hỗ trợ & tư vấn trực tuyến' })}
+          ${fieldHtml({ name: 'emailCardTitle', label: 'Tiêu đề Ô 3 (Hộp thư điện tử)', value: s.emailCardTitle || 'HỘP THƯ ĐIỆN TỬ' })}
+          ${fieldHtml({ name: 'contactEmail', label: 'Địa chỉ Email Ô 3', value: s.contactEmail || 'thptlehoan@sgddt.gialai.gov.vn' })}
+          ${fieldHtml({ name: 'contactEmailSub', label: 'Ghi chú phụ Ô 3 (dưới Email)', value: s.contactEmailSub || 'Ban Giám hiệu & Tổ Tư vấn học đường' })}
+          ${fieldHtml({ name: 'addressCardTitle', label: 'Tiêu đề Ô 4 (Địa chỉ nhà trường)', value: s.addressCardTitle || 'ĐỊA CHỈ NHÀ TRƯỜNG' })}
+          ${fieldHtml({ name: 'contactAddressSub', label: 'Ghi chú phụ Ô 4 (dưới Địa chỉ)', value: s.contactAddressSub || 'Sở Giáo dục và Đào tạo tỉnh Gia Lai' })}
+          ${fieldHtml({ name: 'contactAddress', label: 'Địa chỉ nhà trường Ô 4', value: s.contactAddress || 'Đường Trần Hưng Đạo, Thị trấn Chư Ty, Huyện Đức Cơ, Tỉnh Gia Lai, Việt Nam', full: true })}
+          ${fieldHtml({ name: 'copyrightText', label: 'Dòng bản quyền góc dưới trái', value: s.copyrightText || `© ${new Date().getFullYear()} ${s.schoolName || 'Trường THPT Lê Hoàn'}. All rights reserved`, full: true })}
+          ${fieldHtml({ name: 'termsContent', label: 'Nội dung popup “Điều khoản & Pháp lý” (để trống dùng mặc định)', type: 'textarea', rows: 3, value: s.termsContent || '', full: true })}
+          ${fieldHtml({ name: 'privacyContent', label: 'Nội dung popup “Chính sách bảo vệ dữ liệu cá nhân” (để trống dùng mặc định)', type: 'textarea', rows: 3, value: s.privacyContent || '', full: true })}
+          ${fieldHtml({ name: 'cookiesContent', label: 'Nội dung popup “Cài đặt cookies” (để trống dùng mặc định)', type: 'textarea', rows: 3, value: s.cookiesContent || '', full: true })}
+        </div>
+      </section>
+
       <section class="card"><div class="card-head"><h2>${icon('phone')} Danh bạ đường dây nóng</h2><button type="button" class="btn ghost sm" id="addH">${icon('plus')} Thêm số</button></div><div class="card-body stack" id="hl">${s.hotlines.map(hotRow).join('')}</div></section>
       <div class="row between"><div class="row" style="gap:8px"><a class="btn soft" href="#backups">${icon('download')} Quản lý Sao lưu & Khôi phục tự động</a>${isAdmin() ? `<button type="button" class="btn danger soft" id="reset">${icon('refresh')} Khôi phục dữ liệu mẫu</button>` : ''}</div><button class="btn lg" id="save" ${isAdmin() ? '' : 'disabled'}>${icon('check')} Lưu cấu hình</button></div>
     </form>`;
+    if ($('#btnFooterModal', view)) {
+      $('#btnFooterModal', view).onclick = () => openFooterSettingsModal(s, {
+        api,
+        showError,
+        onSaved: (nextSettings) => {
+          S.settings = { ...S.settings, ...nextSettings };
+          pages.settings(view);
+        },
+      });
+    }
     $$('[data-image]', view).forEach(inp => inp.onchange = async () => { const f = inp.files[0]; if (!f) return; const d = await compressImage(f, 512, .9); const k = inp.dataset.image; $(`#f_${k}`).value = d; $(`#f_${k}_pv`).innerHTML = `<img src="${d}" alt="">`; const cb = $(`[data-clr-image="${k}"]`, view); if (cb) cb.hidden = false; });
     $$('[data-clr-image]', view).forEach(btn => btn.onclick = () => { const k = btn.dataset.clrImage; $(`#f_${k}`, view).value = ''; $(`#f_${k}_pv`, view).innerHTML = ''; const fi = $(`[data-image="${k}"]`, view); if (fi) fi.value = ''; btn.hidden = true; });
     $('#addH').onclick = () => { $('#hl').insertAdjacentHTML('beforeend', hotRow({ name: '', number: '', note: '' })); bindHot(); };
@@ -1160,7 +1243,29 @@ const PAGES = {
     $('#cf').onsubmit = (e) => {
       e.preventDefault(); const f = formData(e.target);
       const hotlines = $$('#hl .row').map(r => ({ name: $('[data-h="name"]', r).value, number: $('[data-h="number"]', r).value, note: $('[data-h="note"]', r).value })).filter(h => h.name && h.number);
-      withBusy($('#save'), async () => { try { const r = await api.put('api/admin/settings', { schoolName: f.schoolName, shortName: f.shortName, slogan: f.slogan, location: f.location, schoolYear: f.schoolYear, semester: f.semester, apiPin: f.apiPin || '123456', contactPhone: f.contactPhone, contactEmail: f.contactEmail, contactAddress: f.contactAddress, facebookUrl: f.facebookUrl, linkedinUrl: f.linkedinUrl, zaloUrl: f.zaloUrl, creatorName: f.creatorName, siteIntro: f.siteIntro, logo: f.logo === '' ? '' : (f.logo.startsWith('data:') ? f.logo : undefined), marquee: f.marquee.split('\n'), modules: Object.fromEntries(Object.keys(modules).map(k => [k, f['mod_' + k]])), hotlines }); S.settings = { ...S.settings, ...r.settings }; toast('Đã lưu cấu hình. Cổng Học Sinh cập nhật ngay.', 'ok'); } catch (er) { showError(er); } });
+      withBusy($('#save'), async () => {
+        try {
+          const r = await api.put('api/admin/settings', {
+            schoolName: f.schoolName, shortName: f.shortName, orgSub: f.orgSub, slogan: f.slogan,
+            location: f.location, schoolYear: f.schoolYear, semester: f.semester, apiPin: f.apiPin || '123456',
+            creatorName: f.creatorName, creatorRole: f.creatorRole,
+            socialLabel: f.socialLabel, countryLabel: f.countryLabel,
+            verifiedTitle: f.verifiedTitle, verifiedSub: f.verifiedSub,
+            facebookUrl: f.facebookUrl, linkedinUrl: f.linkedinUrl, zaloUrl: f.zaloUrl,
+            introCardTitle: f.introCardTitle, siteIntro: f.siteIntro,
+            phoneCardTitle: f.phoneCardTitle, contactPhone: f.contactPhone, contactPhoneSub: f.contactPhoneSub,
+            emailCardTitle: f.emailCardTitle, contactEmail: f.contactEmail, contactEmailSub: f.contactEmailSub,
+            addressCardTitle: f.addressCardTitle, contactAddress: f.contactAddress, contactAddressSub: f.contactAddressSub,
+            copyrightText: f.copyrightText, termsContent: f.termsContent, privacyContent: f.privacyContent, cookiesContent: f.cookiesContent,
+            logo: f.logo === '' ? '' : (f.logo.startsWith('data:') ? f.logo : undefined),
+            marquee: f.marquee.split('\n'),
+            modules: Object.fromEntries(Object.keys(modules).map(k => [k, f['mod_' + k]])),
+            hotlines,
+          });
+          S.settings = { ...S.settings, ...r.settings };
+          toast('Đã lưu cấu hình. Cổng Học Sinh và chân trang cập nhật ngay.', 'ok');
+        } catch (er) { showError(er); }
+      });
     };
   },
 
@@ -1341,7 +1446,14 @@ const PAGES = {
 
   // ---------------------------------------------------------------- Giới thiệu trang web
   async about(view) {
-    return renderAboutPage(view, { head, settings: S.settings });
+    return renderAboutPage(view, {
+      head,
+      settings: S.settings,
+      api,
+      canEdit: isAdmin(),
+      onSaved: (nextSettings) => { S.settings = { ...S.settings, ...nextSettings }; },
+      showError,
+    });
   },
 };
 

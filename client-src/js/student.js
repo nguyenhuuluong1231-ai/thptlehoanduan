@@ -5,7 +5,8 @@ import { api, session, setPortal, detect, getMode, live, showError } from './cor
 import { icon, drumArt, moodFace } from './core/icons.js';
 import { openCamera } from './core/camera.js';
 import { $, $$, esc, toast, modal, confirmDialog, drawer, formData, withBusy, compressImage, editAvatarModal, copyText, empty, skeleton, badge, barChart, gauge, cover, md, store,
-  fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage } from './core/ui.js';
+  fmtDate, fmtTime, fmtDateTime, ago, vnd, num, greeting, firstName, avatar, idCard, initTheme, initDevToolsGuard, toggleTheme, DAY, DAY_SHORT, sleep, attachmentsHtml, attachComposer, canInstall, installApp, isStandalone, isNativeApp, fileUrl, renderAppGuide, renderAboutPage,
+  chatSecurityBannerHtml, openChatSecurityModal, ensureChatPinUnlocked, promptChatPinModal, bindPrivacyBlurBody, lockChatSession } from './core/ui.js';
 
 setPortal('student');
 initTheme(); initDevToolsGuard();
@@ -41,13 +42,13 @@ const NAV = [
 ];
 const ALL = NAV.flatMap(g => g.items).concat([{ id: 'profile', label: 'Hồ sơ cá nhân', icon: 'user' }, { id: 'inbox', label: 'Tin nhắn', icon: 'chats' }]);
 // Giao diện gọn cho điện thoại / app (màn hình hẹp)
-const compact = () => isNativeApp() || /[?&]mobile/.test(location.search) || matchMedia('(max-width: 760px)').matches;
+const compact = () => isNativeApp() || isStandalone() || /[?&]mobile/.test(location.search) || matchMedia('(max-width: 760px)').matches;
 const ROOT_TABS = ['home', 'inbox', 'report', 'ai', 'profile'];
 const CHAT_PAGES = ['inbox', 'school-chat', 'teacher-chat', 'counseling'];
 const enabled = (it) => !it.module || S.settings?.modules?.[it.module] !== false;
 const go = (page) => { if (location.hash !== '#' + page) location.hash = page; else render(); };
 
-const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() ? 'index.html?mobile=1&switch=1' : (getMode() !== 'server' ? './?switch=1' : '/hocsinhlogin'));
+const studentLoginUrl = () => (window.self !== window.top || /[?&]mobile/.test(location.search) || isNativeApp() || isStandalone() || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent || '') || matchMedia('(max-width: 760px)').matches ? 'index.html?mobile=1&switch=1' : (getMode() !== 'server' ? './?switch=1' : '/hocsinhlogin'));
 
 // ---------------------------------------------------------------------------
 async function boot() {
@@ -736,17 +737,38 @@ const PAGES = {
   async counseling(view) {
     const initData = await api.get('api/counseling/threads');
     let threads = initData.items, allThreads = initData.allItems || initData.items, current = null;
-    view.innerHTML = head('Tư vấn tâm lý', 'Tâm sự với chuyên viên tâm lý học đường — mỗi chuyên viên một cuộc trò chuyện riêng, bảo mật tuyệt đối, có thể chọn ẩn danh hoặc hiện tên bất cứ lúc nào.', `<button class="btn hide-sm" id="newC">${icon('plus')} Nhắn chuyên viên</button>`) + `
+    view.innerHTML = head('Tư vấn tâm lý', 'Tâm sự với chuyên viên tâm lý học đường — mỗi chuyên viên một cuộc trò chuyện riêng, bảo mật tuyệt đối, bấm vào cuộc trò chuyện và nhập Mã PIN để mở.', `<button class="btn soft" id="secCounselBtn">${icon('shieldCheck')} Bảo mật & PIN</button><button class="btn hide-sm" id="newC">${icon('plus')} Nhắn chuyên viên</button>`) + `
     <section class="card chat-layout" id="cl"><div class="threads" id="th"></div><div class="chat" id="cp"></div></section>`;
+    const openSecModal = () => openChatSecurityModal({
+      channel: 'counseling',
+      title: 'Tư vấn tâm lý học đường 1-1',
+      peerName: current?.counselor?.name || 'Tổ tâm lý học đường',
+      securityCode: current?.securityCode || 'E2EE-COUNSEL-256',
+      userId: S.user?.id,
+      isAnon: current ? current.anonymous !== false : true,
+      onChanged: (ev) => { if (ev?.lockedNow) { current = null; $('#cl')?.classList.remove('show-chat'); drawThreads(); drawChat(); } else drawChat(); },
+    });
+    if ($('#secCounselBtn', view)) $('#secCounselBtn', view).onclick = openSecModal;
+    const openWithPin = (id, peerName = '', forceAnon = null) => {
+      const tObj = allThreads.find(x => x.id === id) || threads.find(x => x.id === id);
+      const name = peerName || tObj?.counselor?.name || 'Chuyên viên tâm lý';
+      promptChatPinModal({
+        userId: S.user?.id,
+        peerName: name,
+        titleLabel: 'Tư vấn tâm lý học đường',
+        onSuccess: () => open(id, forceAnon),
+      });
+    };
     const pickCounselor = () => {
       modal({
         title: 'Chọn chuyên viên tư vấn tâm lý',
         sub: `${allThreads.length} chuyên viên · chọn thầy cô để bắt đầu trò chuyện`,
-        body: `<div class="list" id="pickCList" style="max-height:58vh;overflow:auto">${allThreads.map(t => `<div class="item click" data-pick-c="${t.id}">${avatar(t.counselor || { id: 'counselor', name: 'Chuyên viên' })}<div class="grow" style="min-width:0"><b class="small truncate" style="display:block">${esc(t.counselor?.name || 'Chuyên viên tâm lý')}</b><div class="xs muted truncate">${esc(t.counselor?.title || 'Tổ tâm lý học đường')}</div></div>${icon('chevronRight')}</div>`).join('')}</div>`,
+        body: `<div class="list" id="pickCList" style="max-height:58vh;overflow:auto">${allThreads.map(t => `<div class="item click" data-pick-c="${t.id}" data-pick-name="${esc(t.counselor?.name || 'Chuyên viên tâm lý')}">${avatar(t.counselor || { id: 'counselor', name: 'Chuyên viên' })}<div class="grow" style="min-width:0"><b class="small truncate" style="display:block">${esc(t.counselor?.name || 'Chuyên viên tâm lý')}</b><div class="xs muted truncate">${esc(t.counselor?.title || 'Tổ tâm lý học đường')}</div></div>${icon('chevronRight')}</div>`).join('')}</div>`,
         onMount: (m, close) => {
           $$('[data-pick-c]', m).forEach(el => el.onclick = async () => {
+            const cid = el.dataset.pickC, cname = el.dataset.pickName;
             close();
-            await open(el.dataset.pickC);
+            openWithPin(cid, cname);
           });
         },
       });
@@ -754,10 +776,10 @@ const PAGES = {
     if ($('#newC', view)) $('#newC', view).onclick = pickCounselor;
     const drawThreads = () => {
       $('#cl')?.classList.toggle('is-empty', !threads.length && !current);
-      $('#th').innerHTML = `<div class="threads-head"><span class="xs muted strong">${icon('shieldCheck')} Bảo mật · Hỗ trợ 1-1</span><button class="btn sm" id="thNewC">${icon('plus')} Nhắn chuyên viên</button></div>` + (threads.length ? `<div class="list">${threads.map(t => `<div class="item click ${current?.id === t.id ? 'active' : ''}" data-t="${t.id}">${avatar(t.counselor || { id: 'counselor', name: 'Chuyên viên' })}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.counselor?.name || 'Chuyên viên tâm lý')}</b><span class="xs muted nowrap">${t.last ? ago(t.last.at) : ''}</span></div><div class="xs muted truncate">${esc(t.counselor?.title || '')} · <span style="color:${t.anonymous !== false ? 'var(--violet)' : 'var(--brand)'};font-weight:600">${t.anonymous !== false ? 'Ẩn danh' : 'Hiện tên'}</span></div><div class="xs truncate ink2" style="margin-top:2px">${t.last ? esc((t.last.from === 'student' ? 'Bạn: ' : '') + (t.last.recalled ? 'Tin nhắn đã thu hồi' : t.last.text || (t.last.attachments?.length ? '📎 Tệp đính kèm' : ''))) : 'Chưa có tin nhắn — bấm để bắt đầu'}</div></div>${t.unreadStudent ? `<span class="count-pill">${t.unreadStudent}</span>` : ''}<button class="btn icon ghost sm" data-del-c="${t.id}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>`).join('')}</div>` : empty('Chưa có cuộc trò chuyện', 'Chọn chuyên viên tâm lý để chia sẻ ẩn danh hoặc hiện tên.', 'heartHand', `<button class="btn sm" id="emptyNewC" style="margin-top:4px">${icon('plus')} Chọn chuyên viên để nhắn</button>`));
+      $('#th').innerHTML = `<div class="threads-head"><span class="xs muted strong">${icon('shieldCheck')} Bảo mật · Hỗ trợ 1-1</span><button class="btn sm" id="thNewC">${icon('plus')} Nhắn chuyên viên</button></div>` + (threads.length ? `<div class="list">${threads.map(t => `<div class="item click ${current?.id === t.id ? 'active' : ''}" data-t="${t.id}">${avatar(t.counselor || { id: 'counselor', name: 'Chuyên viên' })}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.counselor?.name || 'Chuyên viên tâm lý')}</b><span class="xs muted nowrap">${t.last ? ago(t.last.at) : ''}</span></div><div class="xs muted truncate">${esc(t.counselor?.title || '')} · <span style="color:${t.anonymous !== false ? 'var(--violet)' : 'var(--brand)'};font-weight:600">${t.anonymous !== false ? 'Ẩn danh' : 'Hiện tên'}</span></div><div class="xs truncate ink2" style="margin-top:2px">${current?.id === t.id ? (t.last ? esc((t.last.from === 'student' ? 'Bạn: ' : '') + (t.last.recalled ? 'Tin nhắn đã thu hồi' : t.last.text || (t.last.attachments?.length ? '📎 Tệp đính kèm' : ''))) : 'Chưa có tin nhắn') : `<span style="color:var(--brand);font-weight:600">${icon('lock')} Nhấn vào & nhập mã PIN để mở chat</span>`}</div></div>${t.unreadStudent ? `<span class="count-pill">${t.unreadStudent}</span>` : ''}<button class="btn icon ghost sm" data-del-c="${t.id}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>`).join('')}</div>` : empty('Chưa có cuộc trò chuyện', 'Chọn chuyên viên tâm lý để chia sẻ ẩn danh hoặc hiện tên.', 'heartHand', `<button class="btn sm" id="emptyNewC" style="margin-top:4px">${icon('plus')} Chọn chuyên viên để nhắn</button>`));
       if ($('#thNewC', view)) $('#thNewC', view).onclick = pickCounselor;
       if ($('#emptyNewC', view)) $('#emptyNewC', view).onclick = pickCounselor;
-      $$('[data-t]', view).forEach(el => el.onclick = () => open(el.dataset.t));
+      $$('[data-t]', view).forEach(el => el.onclick = () => openWithPin(el.dataset.t));
       $$('[data-del-c]', view).forEach(el => el.onclick = async (e) => {
         e.stopPropagation();
         const t = threads.find(x => x.id === el.dataset.delC);
@@ -781,10 +803,11 @@ const PAGES = {
     };
     const drawChat = () => {
       const cp = $('#cp');
-      if (!current) { cp.innerHTML = empty('Chọn một chuyên viên', 'Cuộc trò chuyện sẽ hiển thị tại đây.', 'heartHand'); return; }
+      if (!current) { cp.innerHTML = empty('Chọn một chuyên viên để trò chuyện', 'Nhấn vào cuộc trò chuyện ở danh sách và nhập Mã PIN 4 chữ số để mở.', 'lock'); return; }
       const c = current.counselor, started = current.messages.length > 0, hot = current.messages.some(x => x.guard?.level === 'red');
       const isAnon = current.anonymous !== false;
       cp.innerHTML = `<div class="chat-head"><button class="btn icon ghost sm back-btn" id="back" aria-label="Quay lại">${icon('arrowLeft')}</button>${avatar(c || { id: 'counselor', name: 'Chuyên viên' }, 'sm')}<div class="grow" style="min-width:0"><b class="truncate">${esc(c?.name || 'Chuyên viên tâm lý')}</b><div class="xs muted truncate"><span style="color:var(--ok)">●</span> ${esc(c?.title || 'Sẵn sàng lắng nghe')}</div></div><button type="button" class="btn soft sm" id="anonToggle" style="${isAnon ? 'background:var(--violet-soft);color:var(--violet);border-color:transparent' : ''}" title="Bấm để đổi chế độ ẩn danh / hiện tên">${icon(isAnon ? 'eyeOff' : 'user')} ${isAnon ? 'Ẩn danh' : 'Hiện tên'}</button><button type="button" class="btn icon ghost sm" id="delCounselChat" style="color:var(--bad)" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>
+        ${chatSecurityBannerHtml({ securityCode: current.securityCode, isAnon, channel: 'counseling', userId: S.user?.id })}
         ${hot ? `<section class="card pad stack" id="hot" style="margin:8px 10px 0;padding:10px 12px;background:var(--bad-soft);border-color:transparent"><b class="small" style="color:var(--bad)">${icon('siren')} Bạn không đơn độc</b><p class="xs ink2" style="margin:0">Nếu đang gặp nguy hiểm, hãy gọi ngay <b>111</b> hoặc <b>115</b>.</p></section>` : ''}
         <div class="chat-body" id="cb">${started ? current.messages.map(msgHtml).join('') : `<div class="empty"><div class="art" style="background:var(--violet-soft);color:var(--violet)">${icon('heartHand')}</div><h4>Bắt đầu cuộc trò chuyện</h4><p class="small">Chia sẻ cùng ${esc(c?.name || 'chuyên viên')}. Bảo mật tuyệt đối; chế độ ẩn danh không gửi họ tên, mã HS.${c?.phone ? ` Hỗ trợ trực tiếp: ${esc(c.phone)}.` : ''}</p></div>`}</div>
         <div class="chat-anon-bar">
@@ -793,8 +816,11 @@ const PAGES = {
         </div>
         <form class="chat-input" id="cf"><textarea id="ct" rows="1" placeholder="${isAnon ? 'Nhắn ẩn danh…' : 'Nhập điều muốn chia sẻ…'}" aria-label="Nội dung tâm sự"></textarea><button class="btn icon" aria-label="Gửi">${icon('send')}</button></form>`;
       const cb = $('#cb'); cb.scrollTop = cb.scrollHeight;
+      bindPrivacyBlurBody(cb, S.user?.id);
+      if ($('[data-chat-sec-open]', cp)) $('[data-chat-sec-open]', cp).onclick = openSecModal;
+      if ($('[data-chat-lock-now]', cp)) $('[data-chat-lock-now]', cp).onclick = () => { lockChatSession(S.user?.id); current = null; $('#cl')?.classList.remove('show-chat'); drawThreads(); drawChat(); toast('Đã khóa cuộc trò chuyện.', 'ok', 1800); };
       cb.onclick = async (e) => { const b = e.target.closest('[data-recall]'); if (!b) return; const r = await askRecall(`api/counseling/threads/${current.id}/messages/${b.dataset.recall}/recall`); if (r) { current = r.item; drawChat(); refreshThreads(); } };
-      $('#back').onclick = () => { $('#cl').classList.remove('show-chat'); };
+      $('#back').onclick = () => { current = null; $('#cl').classList.remove('show-chat'); drawThreads(); drawChat(); };
       $('#anon').onchange = (e) => setAnon(e.target.checked);
       $('#anonToggle').onclick = () => setAnon(!isAnon);
       $('#anonBadge').onclick = () => setAnon(!isAnon);
@@ -819,8 +845,7 @@ const PAGES = {
     sessionStorage.removeItem('lh_open_counselor');
     sessionStorage.removeItem('lh_open_counselor_anon');
     const targetThread = wantCounselor && allThreads.find(t => t.counselor?.id === wantCounselor || t.counselorId === wantCounselor);
-    if (targetThread) open(targetThread.id, wantAnon !== null ? wantAnon === '1' : null);
-    else if (threads[0] && innerWidth >= 1024) open(threads[0].id);
+    if (targetThread) openWithPin(targetThread.id, targetThread.counselor?.name || 'Chuyên viên tâm lý', wantAnon !== null ? wantAnon === '1' : null);
     S.cleanups.push(live.on('counseling:reply', async ({ threadId }) => {
       const draft = $('#ct')?.value || '';
       const hadFocus = document.activeElement?.id === 'ct';
@@ -961,9 +986,10 @@ const PAGES = {
   async 'school-chat'(view) {
     let data = await api.get('api/school-chat');
     let isAnon = !!store.get('lh_sc_anon', false);
-    view.innerHTML = head('Chat chung toàn trường', 'Kênh giao lưu dành riêng cho học sinh. Có thể chọn nhắn tin ẩn danh hoặc hiện tên; ngôn từ phản cảm sẽ bị lọc tự động.') + `
+    view.innerHTML = head('Chat chung toàn trường', 'Kênh giao lưu dành riêng cho học sinh. Có thể chọn nhắn tin ẩn danh hoặc hiện tên; ngôn từ phản cảm và liên kết lừa đảo được kiểm soát tự động.', `<button class="btn soft" id="secScBtn">${icon('shieldCheck')} Bảo mật kênh chat</button>`) + `
     <section class="card chat school-chat-card">
       <div class="chat-head"><span class="avatar sm sq" style="background:linear-gradient(135deg,#1747c9,#0a84b8)">${icon('chats')}</span><div class="grow" style="min-width:0"><b class="truncate">Học sinh ${esc(S.settings.shortName)}</b><div class="xs muted truncate"><span style="color:var(--ok)">●</span> <span id="online">${data.online}</span> trực tuyến · Văn minh</div></div><button type="button" class="btn soft sm" id="scAnonBtn" title="Bấm để đổi chế độ ẩn danh / hiện tên"></button><span class="badge ok hide-sm">${icon('shieldCheck')} Văn minh 100%</span></div>
+      <div id="scSecBanner"></div>
       <div class="chat-body" id="cb"></div>
       <div id="lockNote"></div>
       <div class="chat-anon-bar">
@@ -973,6 +999,16 @@ const PAGES = {
       <form class="chat-input" id="cf"><textarea id="ct" rows="1" maxlength="600" placeholder="Nhắn tới toàn trường…" aria-label="Tin nhắn"></textarea><button class="btn icon" aria-label="Gửi">${icon('send')}</button></form>
     </section>`;
     const cb = $('#cb');
+    const openScSec = () => openChatSecurityModal({
+      channel: 'school',
+      title: 'Kênh Chat chung toàn trường',
+      peerName: `Học sinh ${S.settings.shortName || 'THPT Lê Hoàn'}`,
+      securityCode: data.securityCode || 'E2EE-SCHOOL-CHAT',
+      userId: S.user?.id,
+      isAnon,
+      onChanged: () => draw(),
+    });
+    if ($('#secScBtn', view)) $('#secScBtn', view).onclick = openScSec;
     const syncAnonUi = () => {
       $('#scAnon').checked = isAnon;
       const btn = $('#scAnonBtn');
@@ -982,6 +1018,10 @@ const PAGES = {
       $('#scAnonTag').className = `badge ${isAnon ? 'violet' : 'info'}`;
       $('#scAnonTag').innerHTML = `${icon(isAnon ? 'lock' : 'user')} ${isAnon ? 'Đã ẩn' : 'Hiện tên'}`;
       $('#ct').placeholder = isAnon ? 'Nhắn ẩn danh…' : 'Nhắn tới toàn trường…';
+      if ($('#scSecBanner', view)) {
+        $('#scSecBanner', view).innerHTML = chatSecurityBannerHtml({ securityCode: data.securityCode, isAnon, channel: 'school', userId: S.user?.id });
+        if ($('[data-chat-sec-open]', view)) $('[data-chat-sec-open]', view).onclick = openScSec;
+      }
     };
     const setAnon = (val) => {
       isAnon = !!val;
@@ -996,9 +1036,12 @@ const PAGES = {
     const msgHtml = (m) => `<div class="msg ${m.mine ? 'me' : ''}" data-id="${m.id}">${!m.mine ? (m.anonymous ? `<span class="avatar sm" style="background:var(--violet);color:#fff">${icon('eyeOff')}</span>` : avatar({ id: m.userId, name: m.name, avatar: m.avatar }, 'sm')) : ''}<div style="min-width:0">
       <div class="who">${m.mine ? '' : `<b style="color:${m.anonymous ? 'var(--violet)' : 'var(--ink)'}">${esc(m.name)}</b>`}<span>${esc(m.className)}</span>${m.anonymous ? badge('Ẩn danh', 'violet') : ''}${m.role === 'staff' ? badge('Nhà trường', 'info') : ''}</div>
       ${m.deleted ? '<div class="bubble deleted">Tin nhắn đã bị quản trị viên gỡ</div>' : bubble(m, m.mine)}
+      ${m.scamWarn && !m.deleted && !m.recalled ? `<div class="xs" style="color:var(--bad);margin-top:2px;font-weight:600">${icon('alert')} ${esc(m.scamWarn)}</div>` : ''}
       <div class="row nowrap" style="gap:6px;${m.mine ? 'justify-content:flex-end' : ''}"><div class="reacts">${Object.entries(m.reactions).map(([e, r]) => `<button class="react ${r.mine ? 'mine' : ''}" data-react="${e}">${e} ${r.count}</button>`).join('')}</div>${!m.deleted && !m.recalled ? `<span class="react-bar">${data.emojis.slice(0, 6).map(e => `<button data-react="${e}" aria-label="Thả ${e}">${e}</button>`).join('')}</span>` : ''}</div>
       <div class="time">${fmtTime(m.at)}${recallBtn(m, m.mine)}</div></div></div>`;
     const draw = () => {
+      syncAnonUi();
+      bindPrivacyBlurBody(cb, S.user?.id);
       cb.innerHTML = data.items.map(msgHtml).join('');
       cb.scrollTop = cb.scrollHeight;
       $('#lockNote').innerHTML = data.locked ? `<div class="badge warn" style="margin:8px 12px 0;height:auto;padding:8px 12px;white-space:normal;border-radius:12px">${icon('lock')} ${esc(data.lockReason || 'Kênh chat đang tạm khóa.')}</div>` : data.muted ? `<div class="badge bad" style="margin:8px 12px 0;height:auto;padding:8px 12px;white-space:normal;border-radius:12px">${icon('volumeX')} Bạn đang bị tạm cấm chat do vi phạm quy tắc ứng xử.</div>` : '';
@@ -1032,14 +1075,34 @@ const PAGES = {
   // ---------------------------------------------------------------- Chat với giáo viên
   async 'teacher-chat'(view) {
     let threads = (await api.get('api/teacher-chat/threads')).items, current = null;
-    view.innerHTML = head('Chat với giáo viên', 'Trao đổi riêng với thầy cô: GVCN, giáo viên bộ môn và tổ tư vấn — hỏi bài, xin nghỉ phép, nhờ hỗ trợ.', `<button class="btn hide-sm" id="newT">${icon('plus')} Nhắn giáo viên</button>`) + `
+    view.innerHTML = head('Chat với giáo viên', 'Trao đổi riêng với thầy cô: GVCN, giáo viên bộ môn và tổ tư vấn — bấm vào cuộc trò chuyện và nhập Mã PIN để mở (mã hóa E2EE & cô lập 1-1).', `<button class="btn soft" id="secTeacherBtn">${icon('shieldCheck')} Bảo mật & PIN</button><button class="btn hide-sm" id="newT">${icon('plus')} Nhắn giáo viên</button>`) + `
     <section class="card chat-layout" id="cl"><div class="threads" id="th"></div><div class="chat" id="cp"></div></section>`;
+    const openTeacherSecModal = () => openChatSecurityModal({
+      channel: 'teacher',
+      title: 'Chat 1-1 với Giáo viên',
+      peerName: current?.teacher?.name || 'Giáo viên nhà trường',
+      securityCode: current?.securityCode || 'E2EE-TEACHER-256',
+      userId: S.user?.id,
+      isAnon: !!current?.anonymous,
+      onChanged: (ev) => { if (ev?.lockedNow) { current = null; $('#cl')?.classList.remove('show-chat'); drawThreads(); drawChat(); } else drawChat(); },
+    });
+    if ($('#secTeacherBtn', view)) $('#secTeacherBtn', view).onclick = openTeacherSecModal;
+    const openWithPin = (id, peerName = '') => {
+      const tObj = threads.find(x => x.id === id);
+      const name = peerName || tObj?.teacher?.name || 'Giáo viên';
+      promptChatPinModal({
+        userId: S.user?.id,
+        peerName: name,
+        titleLabel: 'Chat với Giáo viên',
+        onSuccess: () => open(id),
+      });
+    };
     const drawThreads = () => {
       $('#cl')?.classList.toggle('is-empty', !threads.length && !current);
-      $('#th').innerHTML = `<div class="threads-head"><span class="xs muted strong">${threads.length ? `${threads.length} cuộc trò chuyện` : 'Danh sách trò chuyện'}</span><button class="btn sm" id="thNewT">${icon('plus')} Nhắn giáo viên</button></div>` + (threads.length ? `<div class="list">${threads.map(t => `<div class="item click ${current?.id === t.id ? 'active' : ''}" data-t="${t.id}">${avatar(t.teacher)}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.teacher.name)}</b><span class="xs muted nowrap">${t.last ? ago(t.last.at) : ''}</span></div><div class="xs muted truncate">${esc(t.teacher.subject || '')}</div><div class="xs truncate ink2" style="margin-top:2px">${t.last ? esc((t.last.from === 'student' ? 'Bạn: ' : '') + (t.last.recalled ? 'Tin nhắn đã thu hồi' : t.last.text || (t.last.attachments?.length ? '📎 Tệp đính kèm' : ''))) : 'Chưa có tin nhắn'}</div></div>${t.unread ? `<span class="count-pill">${t.unread}</span>` : ''}<button class="btn icon ghost sm" data-del="${t.id}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>`).join('')}</div>` : empty('Chưa có cuộc trò chuyện', 'Chọn thầy cô chủ nhiệm hoặc giáo viên bộ môn để hỏi bài, xin nghỉ phép.', 'message', `<button class="btn sm" id="emptyNewT" style="margin-top:4px">${icon('plus')} Chọn giáo viên để nhắn</button>`));
+      $('#th').innerHTML = `<div class="threads-head"><span class="xs muted strong">${threads.length ? `${threads.length} cuộc trò chuyện` : 'Danh sách trò chuyện'}</span><button class="btn sm" id="thNewT">${icon('plus')} Nhắn giáo viên</button></div>` + (threads.length ? `<div class="list">${threads.map(t => `<div class="item click ${current?.id === t.id ? 'active' : ''}" data-t="${t.id}">${avatar(t.teacher)}<div class="grow" style="min-width:0"><div class="row between nowrap" style="gap:6px"><b class="small truncate">${esc(t.teacher.name)}</b><span class="xs muted nowrap">${t.last ? ago(t.last.at) : ''}</span></div><div class="xs muted truncate">${esc(t.teacher.subject || '')}</div><div class="xs truncate ink2" style="margin-top:2px">${current?.id === t.id ? (t.last ? esc((t.last.from === 'student' ? 'Bạn: ' : '') + (t.last.recalled ? 'Tin nhắn đã thu hồi' : t.last.text || (t.last.attachments?.length ? '📎 Tệp đính kèm' : ''))) : 'Chưa có tin nhắn') : `<span style="color:var(--brand);font-weight:600">${icon('lock')} Nhấn vào & nhập mã PIN để mở chat</span>`}</div></div>${t.unread ? `<span class="count-pill">${t.unread}</span>` : ''}<button class="btn icon ghost sm" data-del="${t.id}" style="color:var(--bad)" aria-label="Xóa cuộc trò chuyện" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>`).join('')}</div>` : empty('Chưa có cuộc trò chuyện', 'Chọn thầy cô chủ nhiệm hoặc giáo viên bộ môn để hỏi bài, xin nghỉ phép.', 'message', `<button class="btn sm" id="emptyNewT" style="margin-top:4px">${icon('plus')} Chọn giáo viên để nhắn</button>`));
       if ($('#thNewT', view)) $('#thNewT', view).onclick = () => $('#newT').click();
       if ($('#emptyNewT', view)) $('#emptyNewT', view).onclick = () => $('#newT').click();
-      $$('[data-t]', view).forEach(el => el.onclick = () => open(el.dataset.t));
+      $$('[data-t]', view).forEach(el => el.onclick = () => openWithPin(el.dataset.t));
       $$('[data-del]', view).forEach(el => el.onclick = async (e) => {
         e.stopPropagation();
         const t = threads.find(x => x.id === el.dataset.del);
@@ -1051,7 +1114,7 @@ const PAGES = {
       });
     };
     const leaveCard = (m) => `<div class="bubble"><div class="leave-card"><b>${icon('file')} Đơn xin nghỉ học</b><div class="small" style="margin-top:4px">Ngày ${esc(m.leave.date.split('-').reverse().join('/'))} · ${esc(m.leave.session)}</div><div class="small">Lý do: ${esc(m.text)}</div><div style="margin-top:6px">${badge({ pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Không duyệt' }[m.leave.status], { pending: 'warn', approved: 'ok', rejected: 'bad' }[m.leave.status])}</div></div></div>`;
-    const msgHtml = (m) => { const mine = m.from === 'student'; return `<div class="msg ${mine ? 'me' : ''}">${!mine ? avatar(current.teacher, 'sm') : ''}<div>${m.kind === 'leave' && !m.recalled ? leaveCard(m) : bubble(m, mine)}<div class="time">${fmtTime(m.at)} · ${fmtDate(m.at)}${recallBtn(m, mine)}</div></div></div>`; };
+    const msgHtml = (m) => { const mine = m.from === 'student'; return `<div class="msg ${mine ? 'me' : ''}">${!mine ? avatar(current.teacher, 'sm') : ''}<div>${m.kind === 'leave' && !m.recalled ? leaveCard(m) : bubble(m, mine)}${m.scamWarn && !m.recalled ? `<div class="xs" style="color:var(--bad);margin-top:2px;font-weight:600">${icon('alert')} ${esc(m.scamWarn)}</div>` : ''}<div class="time">${fmtTime(m.at)} · ${fmtDate(m.at)}${recallBtn(m, mine)}</div></div></div>`; };
     const setAnon = async (val) => {
       if (!current) return;
       try {
@@ -1064,9 +1127,10 @@ const PAGES = {
     };
     const drawChat = () => {
       const cp = $('#cp');
-      if (!current) { cp.innerHTML = empty('Chọn một cuộc trò chuyện', 'Tin nhắn với thầy cô sẽ hiển thị tại đây.', 'chat'); return; }
+      if (!current) { cp.innerHTML = empty('Chọn một cuộc trò chuyện', 'Nhấn vào cuộc trò chuyện ở danh sách và nhập Mã PIN 4 chữ số để mở.', 'lock'); return; }
       const isAnon = !!current.anonymous;
       cp.innerHTML = `<div class="chat-head"><button class="btn icon ghost sm back-btn" id="back" aria-label="Quay lại">${icon('arrowLeft')}</button>${avatar(current.teacher, 'sm')}<div class="grow" style="min-width:0"><b class="truncate">${esc(current.teacher.name)}</b><div class="xs muted truncate">${esc(current.teacher.title || current.teacher.subject || '')}</div></div><button class="btn soft sm" id="leave" title="Gửi đơn xin nghỉ phép">${icon('file')} Nghỉ phép</button><button type="button" class="btn icon ghost sm" id="delTeacherChat" style="color:var(--bad)" title="Xóa cuộc trò chuyện">${icon('trash')}</button></div>
+        ${chatSecurityBannerHtml({ securityCode: current.securityCode, isAnon, channel: 'teacher', userId: S.user?.id })}
         <div class="chat-body" id="cb">${current.messages.length ? current.messages.map(msgHtml).join('') : empty('Gửi lời chào tới thầy cô', 'Trao đổi bài học hoặc gửi đơn xin nghỉ phép.', 'message')}</div>
         <div class="chat-anon-bar">
           <label class="check"><input type="checkbox" id="anon" ${isAnon ? 'checked' : ''}><span class="truncate"><b>Nhắn ẩn danh</b> · ${isAnon ? 'Giấu tên & lớp' : `Hiện tên (${esc(firstName(S.user?.name || ''))})`}</span></label>
@@ -1074,8 +1138,11 @@ const PAGES = {
         </div>
         <form class="chat-input" id="cf"><textarea id="ct" rows="1" placeholder="${isAnon ? 'Nhắn ẩn danh…' : 'Nhắn cho thầy cô…'}" aria-label="Tin nhắn"></textarea><button class="btn icon" aria-label="Gửi">${icon('send')}</button></form>`;
       const cb = $('#cb'); cb.scrollTop = cb.scrollHeight;
+      bindPrivacyBlurBody(cb, S.user?.id);
+      if ($('[data-chat-sec-open]', cp)) $('[data-chat-sec-open]', cp).onclick = openTeacherSecModal;
+      if ($('[data-chat-lock-now]', cp)) $('[data-chat-lock-now]', cp).onclick = () => { lockChatSession(S.user?.id); current = null; $('#cl')?.classList.remove('show-chat'); drawThreads(); drawChat(); toast('Đã khóa cuộc trò chuyện.', 'ok', 1800); };
       cb.onclick = async (e) => { const b = e.target.closest('[data-recall]'); if (!b) return; const r = await askRecall(`api/teacher-chat/threads/${current.id}/messages/${b.dataset.recall}/recall`); if (r) { current = r.item; drawChat(); refreshThreads(); } };
-      $('#back').onclick = () => { $('#cl').classList.remove('show-chat'); };
+      $('#back').onclick = () => { current = null; $('#cl').classList.remove('show-chat'); drawThreads(); drawChat(); };
       $('#anon').onchange = (e) => setAnon(e.target.checked);
       $('#anonToggle').onclick = () => setAnon(!isAnon);
       $('#delTeacherChat').onclick = async () => {
@@ -1086,7 +1153,7 @@ const PAGES = {
       $$('[data-q]', cp).forEach(b => b.onclick = () => { $('#ct').value = b.dataset.q; $('#ct').focus(); });
       autoGrow($('#ct'), () => $('#cf').requestSubmit());
       const comp = attachComposer($('#cf'));
-      $('#cf').onsubmit = async (e) => { e.preventDefault(); const text = $('#ct').value.trim(); $('#ct').value = ''; const ok = await sendWithFiles(comp, text, async (b) => { const r = await api.post(`api/teacher-chat/threads/${current.id}/messages`, { ...b, anonymous: $('#anon')?.checked ?? false }); current = r.item; }, $('#cf button[aria-label="Gửi"]')); if (ok) { refreshThreads(); drawChat(); } else if (text) $('#ct').value = text; };
+      $('#cf').onsubmit = async (e) => { e.preventDefault(); const text = $('#ct').value.trim(); $('#ct').value = ''; const ok = await sendWithFiles(comp, text, async (b) => { const r = await api.post(`api/teacher-chat/threads/${current.id}/messages`, { ...b, anonymous: $('#anon')?.checked ?? false }); current = r.item; if (r.warning) toast(r.warning, 'warn', 5000); }, $('#cf button[aria-label="Gửi"]')); if (ok) { refreshThreads(); drawChat(); } else if (text) $('#ct').value = text; };
       $('#leave').onclick = () => modal({ title: 'Đơn xin nghỉ học', sub: `Gửi tới ${esc(current.teacher.name)}`, body: `<form id="lf" class="stack"><div class="field-row"><div class="field"><label for="ld">Ngày nghỉ</label><input id="ld" name="date" type="date" required value="${new Date(Date.now() + 86400000).toISOString().slice(0, 10)}"></div><div class="field"><label for="ls">Buổi</label><select id="ls" name="session"><option>Cả ngày</option><option>Sáng</option><option>Chiều</option></select></div></div><div class="field"><label for="lr">Lý do</label><textarea id="lr" name="reason" required placeholder="Ví dụ: Em bị sốt, gia đình xin phép cho em nghỉ để đi khám."></textarea><span class="hint">Phụ huynh vui lòng xác nhận với GVCN qua điện thoại nếu nghỉ dài ngày.</span></div></form>`,
         foot: '<button class="btn ghost" data-close>Hủy</button><button class="btn" id="lsend">Gửi đơn</button>', onMount: (m, close) => $('#lsend', m).onclick = async () => { const f = formData($('#lf', m)); if (!f.reason.trim()) return toast('Vui lòng nhập lý do nghỉ.', 'warn'); try { const r = await api.post(`api/teacher-chat/threads/${current.id}/messages`, { kind: 'leave', leave: f }); current = r.item; close(); drawChat(); toast('Đã gửi đơn xin nghỉ.', 'ok'); } catch (e) { showError(e); } } });
     };
@@ -1094,8 +1161,7 @@ const PAGES = {
     const open = async (id) => { current = (await api.get(`api/teacher-chat/threads/${id}`)).item; $('#cl').classList.add('show-chat'); drawChat(); refreshThreads(); refreshBadges(); };
     drawThreads(); drawChat();
     const want = sessionStorage.getItem('lh_open_thread'); sessionStorage.removeItem('lh_open_thread');
-    if (want && threads.some(t => t.id === want)) open(want);
-    else if (threads[0] && innerWidth >= 1024) open(threads[0].id);
+    if (want && threads.some(t => t.id === want)) openWithPin(want);
     $('#newT').onclick = async () => {
       // Không gợi ý chuyên viên tâm lý trong danh sách "chọn giáo viên để nhắn tin" — tách bạch với
       // mục Tư vấn tâm lý riêng (ẩn danh, mục đích khác hẳn chat giáo viên thông thường).
@@ -1117,11 +1183,12 @@ const PAGES = {
               return hay.toLowerCase().includes(kw) || fold(hay).includes(kwFold);
             });
             listEl.innerHTML = filtered.length
-              ? filtered.map(t => `<div class="item click" data-pick="${t.id}">${avatar(t)}<div class="grow"><b class="small">${esc(t.name)}</b><div class="xs muted">${esc([t.className, t.subject, t.department].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · '))}</div></div>${icon('chevronRight')}</div>`).join('')
+              ? filtered.map(t => `<div class="item click" data-pick="${t.id}" data-pick-name="${esc(t.name)}">${avatar(t)}<div class="grow"><b class="small">${esc(t.name)}</b><div class="xs muted">${esc([t.className, t.subject, t.department].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · '))}</div></div>${icon('chevronRight')}</div>`).join('')
               : empty('Không tìm thấy giáo viên', 'Thử nhập từ khóa khác.', 'search');
             $$('[data-pick]', listEl).forEach(el => el.onclick = async () => {
+              const tName = el.dataset.pickName;
               const r = await api.post('api/teacher-chat/threads', { teacherId: el.dataset.pick });
-              close(); await refreshThreads(); open(r.item.id);
+              close(); await refreshThreads(); openWithPin(r.item.id, tName);
             });
           };
           renderList();

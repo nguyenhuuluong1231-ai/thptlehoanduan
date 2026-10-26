@@ -13,23 +13,39 @@ export default function chatRoutes(r) {
   const T = 'Chat giáo viên';
   const A = 'Trí tuệ nhân tạo (AI)';
 
+  // Mã vân tay bảo mật định danh phiên hội thoại (hiển thị đồng nhất cho cả học sinh và giáo viên)
+  const makeSecurityCode = (seed = '') => {
+    let h1 = 0x811c9dc5, h2 = 0x01000193;
+    const s = String(seed) + '|LH-E2EE-AES256GCM';
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+      h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b) >>> 0;
+    }
+    const hex = (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).toUpperCase();
+    return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}`;
+  };
+
   // ---------- Chat chung toàn trường ----------
   // Tin đã thu hồi: mọi người chỉ thấy “đã thu hồi”; riêng quản trị viên vẫn xem được nội dung gốc để giám sát
   const msgView = (m, user, db) => {
     const mine = m.userId === user.id;
     const isAnon = !!m.anonymous;
+    const isAdmin = user.role === 'admin';
     const sender = db?.data?.users?.find(u => u.id === m.userId);
     const alias = m.alias || `Học sinh ẩn danh #${String(m.userId || '').slice(-3) || '000'}`;
+    const { realName, realClass, ...clean } = m;
     return {
-      ...m,
+      ...clean,
+      ...(isAdmin ? { realName, realClass } : {}),
       anonymous: isAnon,
-      userId: isAnon && !mine && user.role !== 'admin' ? 'anon' : m.userId,
+      userId: isAnon && !mine && !isAdmin ? 'anon' : m.userId,
       name: isAnon ? alias : (sender?.name || m.name),
       className: isAnon ? 'Ẩn danh' : m.className,
       avatar: isAnon ? null : (sender?.avatar || m.avatar || null),
       recalled: !!m.recalled,
-      text: m.deleted || (m.recalled && user.role !== 'admin') ? '' : m.text,
-      attachments: m.deleted || (m.recalled && user.role !== 'admin') ? [] : (m.attachments || []),
+      text: m.deleted || (m.recalled && !isAdmin) ? '' : m.text,
+      attachments: m.deleted || (m.recalled && !isAdmin) ? [] : (m.attachments || []),
       reactions: Object.fromEntries(Object.entries(m.reactions || {}).map(([e, ids]) => [e, { count: ids.length, mine: ids.includes(user.id) }])),
       mine,
     };
@@ -40,7 +56,7 @@ export default function chatRoutes(r) {
     let list = c.messages;
     if (req.query.since) list = list.filter(m => m.at > req.query.since);
     const online = new Set(ctx.db.data.users.filter(u => u.lastLogin && Date.now() - new Date(u.lastLogin).getTime() < 3 * 3600000).map(u => u.id)).size;
-    return { locked: c.locked, lockReason: c.lockReason, muted: c.muted.includes(req.user.id), warnings: c.warnings[req.user.id] || 0, online: Math.max(online, 3) + 180, items: list.slice(-120).map(m => msgView(m, req.user, ctx.db)), emojis: EMOJIS };
+    return { locked: c.locked, lockReason: c.lockReason, muted: c.muted.includes(req.user.id), warnings: c.warnings[req.user.id] || 0, online: Math.max(online, 3) + 180, securityCode: makeSecurityCode('SCHOOL-CHAT-GLOBAL'), items: list.slice(-120).map(m => msgView(m, req.user, ctx.db)), emojis: EMOJIS };
   });
 
   r.post('/api/school-chat', { auth: 'user', group: S, desc: 'Gửi tin nhắn kênh chung (tự động lọc ngôn từ phản cảm, hỗ trợ gửi ẩn danh).', body: { text: 'Chào cả nhà!', anonymous: false } }, async (req, ctx) => {
@@ -53,6 +69,8 @@ export default function chatRoutes(r) {
     const attachments = cleanAttachments(req.body.attachments);
     const raw = str(req.body.text, 'tin nhắn', { required: !attachments.length, max: 600 });
     const { text, flagged } = !raw || ctx.db.data.aiGuard.autoFilterChat === false ? { text: raw, flagged: false } : filterProfanity(raw);
+    const scam = raw ? scanMessage(raw) : null;
+    const scamWarn = scam && (scam.level === 'danger' || scam.score >= 60) ? (scam.reasons?.[0] || 'Cảnh báo: Tin nhắn chứa liên kết hoặc dấu hiệu đáng ngờ.') : null;
     const isAnon = u.role === 'student' && !!req.body.anonymous;
     const alias = `Học sinh ẩn danh #${String(u.id).slice(-3)}`;
     const m = {
@@ -72,6 +90,7 @@ export default function chatRoutes(r) {
       at: nowISO(),
       deleted: false,
       flagged,
+      ...(scamWarn ? { scamWarn } : {}),
     };
     c.messages.push(m);
     if (c.messages.length > 1000) c.messages.splice(0, c.messages.length - 1000);
@@ -81,9 +100,10 @@ export default function chatRoutes(r) {
     }
     const guard = raw ? scanGuard(raw, ctx.db.data.aiGuard) : null;
     if (guard && guard.level !== 'yellow') raiseAlert(ctx, { level: guard.level, source: 'chat', title: `Chat chung: ${guard.categories[0]}`, userId: u.id, name: u.name, className: u.className, keywords: guard.keywords, context: raw.slice(0, 160), ref: m.id });
-    ctx.emit('school-chat:message', { ...m, name: isAnon ? alias : m.name, className: isAnon ? 'Ẩn danh' : m.className, avatar: isAnon ? null : m.avatar }, { all: true });
+    const { realName: _rn, realClass: _rc, ...safeBroadcast } = m;
+    ctx.emit('school-chat:message', { ...safeBroadcast, userId: isAnon ? 'anon' : m.userId, name: isAnon ? alias : m.name, className: isAnon ? 'Ẩn danh' : m.className, avatar: isAnon ? null : m.avatar }, { all: true });
     ctx.db.save();
-    return { item: msgView(m, u), filtered: flagged, warning: flagged ? `Tin nhắn chứa từ ngữ không phù hợp đã được che. Cảnh báo ${c.warnings[u.id]}/3.` : null };
+    return { item: msgView(m, u, ctx.db), filtered: flagged, warning: flagged ? `Tin nhắn chứa từ ngữ không phù hợp đã được che. Cảnh báo ${c.warnings[u.id]}/3.` : scamWarn };
   });
 
   r.post('/api/school-chat/:id/react', { auth: 'user', group: S, desc: 'Thả / bỏ biểu cảm cho tin nhắn.', body: { emoji: '❤️' } }, async (req, ctx) => {
@@ -115,7 +135,18 @@ export default function chatRoutes(r) {
     const studentInfo = (viewer.role !== 'student' && isAnon)
       ? { id: 'anon', name: alias, className: 'Ẩn danh', avatar: null, anonymous: true }
       : { ...brief(student), anonymous: isAnon };
-    return { ...t, anonymous: isAnon, alias, messages, teacher: { ...brief(teacher), subject: teacher?.subject, title: teacher?.title, counselor: !!teacher?.counselor }, student: studentInfo, unread: viewer.role === 'student' ? t.unreadStudent : t.unreadTeacher, last: messages.at(-1) || null };
+    return {
+      ...t,
+      studentId: (viewer.role !== 'student' && isAnon && !admin) ? 'anon' : t.studentId,
+      securityCode: makeSecurityCode(`${t.id}|${t.teacherId}`),
+      anonymous: isAnon,
+      alias,
+      messages,
+      teacher: { ...brief(teacher), subject: teacher?.subject, title: teacher?.title, counselor: !!teacher?.counselor },
+      student: studentInfo,
+      unread: viewer.role === 'student' ? t.unreadStudent : t.unreadTeacher,
+      last: messages.at(-1) || null,
+    };
   };
   const canSee = (t, u) => u.role === 'admin' || t.studentId === u.id || t.teacherId === u.id;
 
@@ -182,12 +213,15 @@ export default function chatRoutes(r) {
     const t = findOr404(ctx.db.data.teacherChat, req.params.id, 'cuộc trò chuyện');
     if (!canSee(t, req.user) || req.user.role === 'admin' && req.user.id !== t.teacherId) fail(403, 'Bạn không có quyền gửi tin trong cuộc trò chuyện này.');
     const fromStudent = req.user.role === 'student';
+    const senderSide = fromStudent ? 'student' : 'teacher';
+    const recentMsgs = t.messages.filter(m => m.from === senderSide && Date.now() - new Date(m.at).getTime() < 8000);
+    if (recentMsgs.length >= 5) fail(429, 'Bạn gửi tin quá nhanh. Vui lòng chờ vài giây.');
     if (fromStudent && req.body.anonymous !== undefined) {
       t.anonymous = !!req.body.anonymous;
       t.alias = t.alias || `Học sinh ẩn danh #${t.id.slice(-4)}`;
     }
     const kind = oneOf(req.body.kind, 'loại tin', ['text', 'leave', 'leave-reply'], 'text');
-    let msg;
+    let msg, scamWarn = null;
     if (kind === 'leave') {
       if (!fromStudent) fail(400, 'Chỉ học sinh mới gửi đơn xin nghỉ.');
       const l = req.body.leave || {};
@@ -200,15 +234,30 @@ export default function chatRoutes(r) {
       msg = { id: uid('c'), from: 'teacher', kind: 'text', text: req.body.approve ? `Cô/thầy đã duyệt đơn nghỉ ngày ${target.leave.date}. Em nhớ chép bài đầy đủ nhé.` : `Đơn nghỉ ngày ${target.leave.date} chưa được duyệt. Em liên hệ trực tiếp với cô/thầy nhé.`, at: nowISO() };
     } else {
       const attachments = cleanAttachments(req.body.attachments);
-      msg = { id: uid('c'), from: fromStudent ? 'student' : 'teacher', kind: 'text', text: str(req.body.text, 'tin nhắn', { required: !attachments.length, max: 2000 }), attachments, at: nowISO() };
+      const text = str(req.body.text, 'tin nhắn', { required: !attachments.length, max: 2000 });
+      const scam = text ? scanMessage(text) : null;
+      scamWarn = scam && (scam.level === 'danger' || scam.score >= 60) ? (scam.reasons?.[0] || 'Cảnh báo: Tin nhắn có chứa liên kết hoặc dấu hiệu đáng ngờ.') : null;
+      msg = { id: uid('c'), from: fromStudent ? 'student' : 'teacher', kind: 'text', text, attachments, at: nowISO(), ...(scamWarn ? { scamWarn } : {}) };
+      if (fromStudent && text) {
+        const guard = scanGuard(text, ctx.db.data.aiGuard);
+        if (guard && guard.level !== 'yellow') {
+          msg.guard = guard;
+          raiseAlert(ctx, { level: guard.level, source: 'chat', title: `Chat GV: ${guard.categories[0]}`, userId: t.anonymous ? null : req.user.id, name: t.anonymous ? (t.alias || 'Học sinh ẩn danh') : req.user.name, className: t.anonymous ? '' : (req.user.className || ''), keywords: guard.keywords, context: text.slice(0, 160), ref: t.id });
+        }
+      }
     }
     t.messages.push(msg); t.updatedAt = msg.at;
     if (fromStudent) t.unreadTeacher++; else { t.unreadStudent++; t.hiddenForStudent = false; }
     const target = fromStudent ? { userId: t.teacherId } : { userId: t.studentId };
     ctx.emit('teacher-chat:message', { threadId: t.id, message: msg }, target);
-    if (!fromStudent) msg.notifId = notify(ctx, t.studentId, { title: `${req.user.name} đã trả lời`, content: (msg.text || `Đã gửi ${attachSummary(msg.attachments)}`).slice(0, 120), type: 'chat', link: 'teacher-chat' }).id;
+    if (!fromStudent) {
+      msg.notifId = notify(ctx, t.studentId, { title: `${req.user.name} đã trả lời`, content: (msg.text || `Đã gửi ${attachSummary(msg.attachments)}`).slice(0, 120), type: 'chat', link: 'teacher-chat' }).id;
+    } else if (t.teacherId) {
+      const senderLabel = t.anonymous ? (t.alias || 'Học sinh ẩn danh') : `${req.user.name}${req.user.className ? ' (' + req.user.className + ')' : ''}`;
+      msg.notifId = notify(ctx, t.teacherId, { title: `Tin nhắn mới từ ${senderLabel}`, content: (msg.text || `Đã gửi ${attachSummary(msg.attachments)}`).slice(0, 120), type: 'chat', link: 'teacher-chat' }).id;
+    }
     ctx.db.save();
-    return { item: threadView(t, ctx.db, req.user), message: msg };
+    return { item: threadView(t, ctx.db, req.user), message: msg, warning: scamWarn };
   });
 
   r.post('/api/teacher-chat/threads/:id/messages/:mid/recall', { auth: 'user', group: T, desc: 'Thu hồi tin nhắn mình đã gửi trong cuộc trò chuyện 1-1 (Ban Giám hiệu vẫn xem được nội dung gốc).' }, async (req, ctx) => {

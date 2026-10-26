@@ -102,15 +102,17 @@ function buildEncryptedInlineScript(entryRel) {
 const HTML_ENTRIES = {
   'index.html': 'login.js',
   'staff.html': 'login.js',
+  'admin-login.html': 'login.js',
   'app.html': 'student.js',
   'admin.html': 'admin.js',
+  'teacher.html': 'admin.js',
   'phone.html': 'phone.js',
   'docs.html': 'docs.js',
 };
 
 const ver = 'v=' + Date.now().toString(36);
 const pubDir = path.join(ROOT, 'public');
-const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.update()));</script><style>.demo-ribbon{display:none!important}</style>';
+const inlineFix = '<script>window.process=window.process||{env:{}};if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https://"+location.host+location.pathname+location.search+location.hash);if(location.pathname==="/"&&window.self===window.top&&!window.Capacitor&&!window.LH_CONFIG?.app&&!/[?&](mobile|switch)=/.test(location.search)){location.replace((/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent||"")||innerWidth<=760?"/mobile":"/hocsinhlogin")+location.search+location.hash);}if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.update()));</script><style>.demo-ribbon{display:none!important}</style>';
 const rootSplash = '<div id="root"><div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center"><img src="assets/school_logo.png" alt="Trường THPT Lê Hoàn" style="width:96px;height:96px;object-fit:contain;border-radius:50%;background:#fff;padding:6px;box-shadow:0 12px 32px rgba(23,71,201,.28)"><div style="font-weight:700;font-size:16px">Trường THPT Lê Hoàn</div><div class="skel" style="width:180px;height:8px;border-radius:99px"></div></div></div>';
 
 for (const [f, entryRel] of Object.entries(HTML_ENTRIES)) {
@@ -122,8 +124,10 @@ for (const [f, entryRel] of Object.entries(HTML_ENTRIES)) {
   html = html.replace(/<script data-lh-bundle="1">[\s\S]*?<\/script>\s*/g, '');
   html = html.replace('<head>', '<head>\n  ' + inlineFix);
   html = html.replace(/<link rel="icon"[^>]*>/g, '<link rel="icon" href="assets/school_logo.png" type="image/png">');
+  html = html.replace(/<meta name="apple-mobile-web-app-title"[^>]*>/g, '<meta name="apple-mobile-web-app-title" content="LeHoan ShareLove">');
   html = html.replace(/<div id="root">[\s\S]*?<\/div>\s*(?=<(?:noscript|script|\/body))/i, rootSplash + '\n');
   html = html.replace(/(href="css\/[a-zA-Z0-9_.\-/]+\.css)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
+  html = html.replace(/(href="manifest\.webmanifest)(?:\?[^"]*)?(")/g, `$1?${ver}$2`);
   const inlineBundle = buildEncryptedInlineScript(entryRel);
   html = html.replace('</body>', inlineBundle + '\n</body>');
   fs.writeFileSync(p, html, 'utf8');

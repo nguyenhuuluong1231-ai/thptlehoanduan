@@ -395,7 +395,8 @@ export const isNativeApp = () => !!(typeof window !== 'undefined' && (window.LH_
 export const apiBase = () => {
   // Trong app: địa chỉ người dùng tự nhập (nếu có) ưu tiên hơn địa chỉ đóng gói sẵn khi build.
   const saved = isNativeApp() ? store.get('lh_api_base', null) : null;
-  return String(saved ?? (typeof window !== 'undefined' ? window.LH_CONFIG?.apiBase : '') ?? '').replace(/\/+$/, '');
+  const base = (typeof saved === 'string' && saved.trim()) ? saved.trim() : (typeof window !== 'undefined' ? window.LH_CONFIG?.apiBase : '');
+  return String(base || '').replace(/\/+$/, '');
 };
 /** Đường dẫn tệp tải lên (uploads/…) → địa chỉ đầy đủ khi chạy trong app. */
 export const fileUrl = (u = '') => (/^\/?uploads\//.test(u) && apiBase() ? `${apiBase()}/${String(u).replace(/^\/+/, '')}` : u);
@@ -526,7 +527,7 @@ const DEFAULT_APP_GUIDE = {
   qrSub: 'Dùng Camera, Zalo hoặc trình duyệt quét mã để mở ngay trên điện thoại',
   qrBadge: 'Hỗ trợ Android · iOS · PC',
   customUrl: 'https://tuvantamlihocduonglehoan.com',
-  apkUrl: '/Tu-van-tam-ly-hoc-duong.apk',
+  apkUrl: '/LeHoan-ShareLove.apk',
   qrNote: 'Lưu ý: Nếu mở bằng địa chỉ mạng nội bộ (192.168.x.x), điện thoại và máy tính cần kết nối cùng một mạng Wi-Fi.',
   benefitsTitle: 'Lợi ích khi cài App lên thiết bị',
   benefits: [
@@ -848,7 +849,9 @@ export async function renderAppGuide(view, { api, head, canEdit = false, showErr
 
 export function aboutPortalHtml(s = {}) {
   const school = s.schoolName || 'Trường THPT Lê Hoàn';
+  const orgSub = s.orgSub || 'SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH GIA LAI';
   const creator = s.creatorName || 'Vũ Nguyễn An Khang';
+  const creatorRole = s.creatorRole || 'Thiết kế giao diện, kiến trúc bảo mật & phát triển toàn diện Web · App · AI';
   const intro = s.siteIntro || 'Cổng Học Đường Số Trường THPT Lê Hoàn là nền tảng trực tuyến hỗ trợ học sinh tố giác vi phạm ẩn danh, tư vấn tâm lý học đường 24/7, kết nối thầy cô, thi trắc nghiệm pháp luật và tích hợp trí tuệ nhân tạo (AI) phòng chống lừa đảo không gian mạng.';
   const features = [
     ['shieldAlert', 'Tố giác vi phạm ẩn danh', 'Gửi phản ánh bạo lực học đường, vi phạm nội quy kèm ảnh chụp minh chứng; bảo mật danh tính người gửi và theo dõi tiến trình xử lý minh bạch.'],
@@ -863,11 +866,11 @@ export function aboutPortalHtml(s = {}) {
     <section class="card pad stack" style="gap:16px;background:linear-gradient(135deg,var(--brand-soft),var(--surface));border-color:var(--brand-line)">
       <div class="row between" style="gap:16px;flex-wrap:wrap;align-items:center">
         <div class="row" style="gap:14px;align-items:center">
-          <img src="${esc(s.logo || 'assets/logo-mark.svg')}" alt="" style="width:58px;height:58px;border-radius:16px;background:#fff;padding:5px;object-fit:contain;box-shadow:var(--shadow-1)">
+          <img src="${esc(s.logo || 'assets/school_logo.png')}" alt="" style="width:58px;height:58px;border-radius:16px;background:#fff;padding:5px;object-fit:contain;box-shadow:var(--shadow-1)">
           <div>
             <span class="badge info" style="margin-bottom:4px">${icon('sparkles')} Cổng Học Đường Số · Năm học ${esc(s.schoolYear || '2026 – 2027')}</span>
             <h2 style="font-family:var(--font-display);font-size:1.3rem;margin:0">${esc(school)}</h2>
-            <div class="small muted">Sở Giáo dục và Đào tạo tỉnh Gia Lai · ${esc(s.slogan || 'Trường học an toàn · Thân thiện · Hạnh phúc')}</div>
+            <div class="small muted">${esc(orgSub)} · ${esc(s.slogan || 'Trường học an toàn · Thân thiện · Hạnh phúc')}</div>
           </div>
         </div>
         <div class="card pad row nowrap" style="gap:12px;padding:12px 16px;background:var(--surface);border:1.5px solid var(--brand-line);border-radius:14px;box-shadow:var(--shadow-1)">
@@ -875,7 +878,7 @@ export function aboutPortalHtml(s = {}) {
           <div>
             <div class="xs muted" style="text-transform:uppercase;letter-spacing:.04em;font-weight:700">Tác giả & Phát triển hệ thống</div>
             <div style="font-family:var(--font-display);font-size:1.05rem;font-weight:800;color:var(--brand)">Trang web này được tạo bởi ${esc(creator)}</div>
-            <div class="xs ink2">Thiết kế giao diện, kiến trúc bảo mật & phát triển toàn diện Web · App · AI</div>
+            <div class="xs ink2">${esc(creatorRole)}</div>
           </div>
         </div>
       </div>
@@ -904,14 +907,14 @@ export function aboutPortalHtml(s = {}) {
       <div class="grid g2" style="gap:12px">
         <div class="card soft pad stack" style="gap:6px">
           <b class="small">${esc(school.toUpperCase())}</b>
-          <div class="small ink2">${icon('phone')} Hotline: <b>${esc(s.contactPhone || '0269 3846 359 · Khẩn cấp: 111')}</b></div>
-          <div class="small ink2">${icon('mail')} Email: <b>${esc(s.contactEmail || 'thptlehoan@sgddt.gialai.gov.vn')}</b></div>
+          <div class="small ink2">${icon('phone')} Hotline: <b>${esc(s.contactPhone || '0269 3846 359 · Khẩn cấp: 111')}</b> <span class="xs muted">(${esc(s.contactPhoneSub || 'Tiếp nhận hỗ trợ & tư vấn trực tuyến')})</span></div>
+          <div class="small ink2">${icon('mail')} Email: <b>${esc(s.contactEmail || 'thptlehoan@sgddt.gialai.gov.vn')}</b> <span class="xs muted">(${esc(s.contactEmailSub || 'Ban Giám hiệu & Tổ Tư vấn học đường')})</span></div>
           <div class="small ink2">${icon('mapPin')} Địa chỉ: ${esc(s.contactAddress || 'Đường Trần Hưng Đạo, Thị trấn Chư Ty, Huyện Đức Cơ, Tỉnh Gia Lai, Việt Nam')}</div>
         </div>
         <div class="card soft pad stack" style="gap:6px">
           <b class="small">Thông tin bản quyền & Sáng lập</b>
           <div class="small ink2">• <b>Người tạo trang web:</b> <span style="color:var(--brand);font-weight:700">${esc(creator)}</span></div>
-          <div class="small ink2">• <b>Đơn vị thụ hưởng & vận hành:</b> ${esc(school)} — Sở GD&ĐT tỉnh Gia Lai</div>
+          <div class="small ink2">• <b>Đơn vị thụ hưởng & vận hành:</b> ${esc(school)} — ${esc(orgSub)}</div>
           <div class="small ink2">• <b>Tiêu chuẩn bảo mật:</b> Mã hóa ECDH P-256 + AES-256-GCM, xác thực 2 cổng độc lập Học sinh & Quản trị/Giáo viên</div>
         </div>
       </div>
@@ -919,6 +922,904 @@ export function aboutPortalHtml(s = {}) {
   </div>`;
 }
 
-export function renderAboutPage(view, { head, settings }) {
-  view.innerHTML = head('Giới thiệu trang web', `Thông tin tổng quan về hệ thống Cổng Học Đường Số ${settings?.schoolName || 'Trường THPT Lê Hoàn'} và tác giả phát triển.`) + aboutPortalHtml(settings);
+export function openFooterSettingsModal(s = {}, { api, onSaved, showError } = {}) {
+  modal({
+    title: 'Chỉnh sửa thông tin Chân trang & Giới thiệu trang web',
+    sub: 'Cập nhật toàn bộ nội dung hiển thị ở chân trang đăng nhập học sinh (/hocsinhlogin) và trang Giới thiệu',
+    size: 'xwide',
+    body: `
+    <form id="ftEditForm" class="stack lg" style="max-height:72vh;overflow:auto;padding-right:4px">
+      <section class="card soft pad stack" style="gap:10px">
+        <b>${icon('building')} 1. Thương hiệu nhà trường & Tác giả (Hàng trên bên trái)</b>
+        <div class="grid g2" style="gap:10px">
+          <div class="field"><label>Tên trường</label><input name="schoolName" value="${esc(s.schoolName || 'Trường THPT Lê Hoàn')}" required></div>
+          <div class="field"><label>Đơn vị chủ quản (dòng dưới tên trường)</label><input name="orgSub" value="${esc(s.orgSub || 'SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH GIA LAI')}"></div>
+          <div class="field"><label>Tác giả / Người tạo trang web</label><input name="creatorName" value="${esc(s.creatorName || 'Vũ Nguyễn An Khang')}"></div>
+          <div class="field"><label>Vai trò / mô tả tác giả (trong popup Giới thiệu)</label><input name="creatorRole" value="${esc(s.creatorRole || 'Thiết kế giao diện, kiến trúc bảo mật & phát triển toàn diện Web · App · AI')}"></div>
+        </div>
+      </section>
+
+      <section class="card soft pad stack" style="gap:10px">
+        <b>${icon('globe')} 2. Kết nối nhà trường & Huy hiệu xác thực (Hàng trên bên phải)</b>
+        <div class="grid g3" style="gap:10px">
+          <div class="field"><label>Nhãn kết nối</label><input name="socialLabel" value="${esc(s.socialLabel || 'KẾT NỐI NHÀ TRƯỜNG')}"></div>
+          <div class="field"><label>Link Facebook (nút f)</label><input name="facebookUrl" value="${esc(s.facebookUrl || 'https://facebook.com')}"></div>
+          <div class="field"><label>Link LinkedIn / Sở GD&ĐT (nút in)</label><input name="linkedinUrl" value="${esc(s.linkedinUrl || 'https://gialai.edu.vn')}"></div>
+          <div class="field"><label>Link Zalo (nút Zalo)</label><input name="zaloUrl" value="${esc(s.zaloUrl || 'https://zalo.me')}"></div>
+          <div class="field"><label>Nhãn quốc gia / ngôn ngữ</label><input name="countryLabel" value="${esc(s.countryLabel || 'Việt Nam')}"></div>
+          <div class="field"><label>Huy hiệu xác thực (Dòng 1 & Dòng 2)</label>
+            <div class="row nowrap" style="gap:6px">
+              <input name="verifiedTitle" value="${esc(s.verifiedTitle || 'ĐÃ ĐĂNG KÝ')}" placeholder="ĐÃ ĐĂNG KÝ">
+              <input name="verifiedSub" value="${esc(s.verifiedSub || 'CỔNG HỌC ĐƯỜNG SỐ')}" placeholder="CỔNG HỌC ĐƯỜNG SỐ">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card soft pad stack" style="gap:10px">
+        <b>${icon('layers')} 3. Bốn ô thông tin chính ở giữa chân trang</b>
+        <div class="grid g2" style="gap:12px">
+          <div class="card pad stack" style="gap:8px">
+            <b class="small">${icon('info')} Ô 1: Giới thiệu trang web</b>
+            <div class="field"><label>Tiêu đề ô 1</label><input name="introCardTitle" value="${esc(s.introCardTitle || 'GIỚI THIỆU TRANG WEB')}"></div>
+            <div class="field"><label>Nội dung giới thiệu</label><textarea name="siteIntro" rows="3">${esc(s.siteIntro || 'Cổng Học Đường Số Trường THPT Lê Hoàn là nền tảng trực tuyến hỗ trợ học sinh tố giác vi phạm ẩn danh, tư vấn tâm lý học đường 24/7, kết nối thầy cô, thi trắc nghiệm pháp luật và tích hợp trí tuệ nhân tạo (AI) phòng chống lừa đảo không gian mạng.')}</textarea></div>
+          </div>
+          <div class="card pad stack" style="gap:8px">
+            <b class="small">${icon('phone')} Ô 2: Hotline & Khẩn cấp 24/7</b>
+            <div class="field"><label>Tiêu đề ô 2</label><input name="phoneCardTitle" value="${esc(s.phoneCardTitle || 'HOTLINE & KHẨN CẤP 24/7')}"></div>
+            <div class="field"><label>Số điện thoại / Hotline</label><input name="contactPhone" value="${esc(s.contactPhone || '0269 3846 359 · Khẩn cấp: 111')}"></div>
+            <div class="field"><label>Dòng ghi chú phụ bên dưới</label><input name="contactPhoneSub" value="${esc(s.contactPhoneSub || 'Tiếp nhận hỗ trợ & tư vấn trực tuyến')}"></div>
+          </div>
+          <div class="card pad stack" style="gap:8px">
+            <b class="small">${icon('mail')} Ô 3: Hộp thư điện tử</b>
+            <div class="field"><label>Tiêu đề ô 3</label><input name="emailCardTitle" value="${esc(s.emailCardTitle || 'HỘP THƯ ĐIỆN TỬ')}"></div>
+            <div class="field"><label>Địa chỉ Email</label><input name="contactEmail" value="${esc(s.contactEmail || 'thptlehoan@sgddt.gialai.gov.vn')}"></div>
+            <div class="field"><label>Dòng ghi chú phụ bên dưới</label><input name="contactEmailSub" value="${esc(s.contactEmailSub || 'Ban Giám hiệu & Tổ Tư vấn học đường')}"></div>
+          </div>
+          <div class="card pad stack" style="gap:8px">
+            <b class="small">${icon('mapPin')} Ô 4: Địa chỉ nhà trường</b>
+            <div class="field"><label>Tiêu đề ô 4</label><input name="addressCardTitle" value="${esc(s.addressCardTitle || 'ĐỊA CHỈ NHÀ TRƯỜNG')}"></div>
+            <div class="field"><label>Địa chỉ</label><input name="contactAddress" value="${esc(s.contactAddress || 'Đường Trần Hưng Đạo, Thị trấn Chư Ty, Huyện Đức Cơ, Tỉnh Gia Lai, Việt Nam')}"></div>
+            <div class="field"><label>Dòng ghi chú phụ bên dưới</label><input name="contactAddressSub" value="${esc(s.contactAddressSub || 'Sở Giáo dục và Đào tạo tỉnh Gia Lai')}"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card soft pad stack" style="gap:10px">
+        <b>${icon('shieldCheck')} 4. Dòng bản quyền & Nội dung các liên kết pháp lý cuối trang</b>
+        <div class="field"><label>Dòng bản quyền góc dưới trái</label><input name="copyrightText" value="${esc(s.copyrightText || `© ${new Date().getFullYear()} ${s.schoolName || 'Trường THPT Lê Hoàn'}. All rights reserved`)}"></div>
+        <div class="grid g3" style="gap:10px">
+          <div class="field"><label>Nội dung “Điều khoản & Pháp lý”</label><textarea name="termsContent" rows="4" placeholder="Để trống sẽ dùng nội dung mặc định">${esc(s.termsContent || '')}</textarea></div>
+          <div class="field"><label>Nội dung “Chính sách bảo vệ dữ liệu”</label><textarea name="privacyContent" rows="4" placeholder="Để trống sẽ dùng nội dung mặc định">${esc(s.privacyContent || '')}</textarea></div>
+          <div class="field"><label>Nội dung “Cài đặt cookies”</label><textarea name="cookiesContent" rows="4" placeholder="Để trống sẽ dùng nội dung mặc định">${esc(s.cookiesContent || '')}</textarea></div>
+        </div>
+      </section>
+    </form>`,
+    foot: `<button class="btn ghost" data-close>Hủy</button><button class="btn" id="ftSaveBtn">${icon('check')} Lưu thay đổi</button>`,
+    onMount: (m, close) => {
+      const submit = () => withBusy($('#ftSaveBtn', m), async () => {
+        try {
+          const payload = formData($('#ftEditForm', m));
+          const r = await api.put('api/admin/settings', payload);
+          toast('Đã lưu thông tin chân trang & giới thiệu!', 'ok');
+          close();
+          if (onSaved) onSaved(r.settings || payload);
+        } catch (er) {
+          if (showError) showError(er);
+          else toast(er.message || 'Không thể lưu cấu hình.', 'bad');
+        }
+      });
+      $('#ftSaveBtn', m).onclick = submit;
+      $('#ftEditForm', m).onsubmit = (e) => { e.preventDefault(); submit(); };
+    },
+  });
+}
+
+export function renderAboutPage(view, { head, settings, api, canEdit = false, onSaved, showError }) {
+  const draw = (s) => {
+    view.innerHTML = head(
+      'Giới thiệu trang web',
+      `Thông tin tổng quan về hệ thống Cổng Học Đường Số ${s?.schoolName || 'Trường THPT Lê Hoàn'} và tác giả phát triển.`,
+      canEdit ? `<button class="btn" id="editAboutBtn">${icon('edit')} Chỉnh sửa thông tin chân trang & giới thiệu</button>` : ''
+    ) + aboutPortalHtml(s);
+    if (canEdit && $('#editAboutBtn', view)) {
+      $('#editAboutBtn', view).onclick = () => openFooterSettingsModal(s, {
+        api,
+        showError,
+        onSaved: (nextSettings) => {
+          const merged = { ...s, ...nextSettings };
+          if (onSaved) onSaved(merged);
+          draw(merged);
+        },
+      });
+    }
+  };
+  draw(settings || {});
+}
+
+// ---------- Bảo mật Box Chat & Tin nhắn Học sinh ↔ Thầy cô (E2EE + PIN Lock + Chống nhìn trộm + Chống chụp màn hình Đen toàn bộ) ----------
+function ensureChatSecurityStyles() {
+  if (typeof document === 'undefined' || document.getElementById('lh-chat-sec-css')) return;
+  const st = document.createElement('style');
+  st.id = 'lh-chat-sec-css';
+  st.textContent = `
+    .chat-sec-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;background:color-mix(in srgb,var(--ok) 9%,var(--surface-2));border-bottom:1px solid color-mix(in srgb,var(--ok) 22%,var(--line));font-size:11.5px;color:var(--ink2);flex-wrap:wrap}
+    .chat-sec-bar .sec-left{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+    .chat-sec-bar .sec-dot{width:7px;height:7px;border-radius:99px;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent);flex:none}
+    .chat-sec-bar .sec-code{font-family:var(--font-mono,monospace);font-weight:700;padding:1px 6px;border-radius:6px;background:var(--surface);border:1px solid var(--line);color:var(--ink);font-size:10.5px}
+    .chat-sec-bar .sec-actions{display:flex;align-items:center;gap:5px;flex:none}
+    .chat-sec-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;border:1px solid color-mix(in srgb,var(--brand) 28%,var(--line));background:var(--surface);color:var(--brand);font-size:11px;font-weight:600;cursor:pointer;transition:.15s}
+    .chat-sec-btn:hover{background:var(--brand-soft)}
+    .chat-sec-btn.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,var(--line))}
+    .chat-privacy-blur .msg .bubble:not(.deleted){filter:blur(6px);transition:filter .18s ease;user-select:none;cursor:pointer}
+    .chat-privacy-blur .msg:hover .bubble,.chat-privacy-blur .msg:focus-within .bubble,.chat-privacy-blur .msg.reveal .bubble{filter:none;user-select:text}
+    .chat-pin-gate{max-width:410px;margin:28px auto;padding:28px 24px;text-align:center;border-radius:20px;border:1px solid var(--line);background:var(--surface);box-shadow:0 12px 32px rgba(15,23,42,.08)}
+    .chat-pin-dots{display:flex;justify-content:center;gap:10px;margin:16px 0}
+    .chat-pin-input{width:170px;text-align:center;font-size:22px;letter-spacing:10px;font-family:var(--font-mono,monospace);font-weight:700;padding:10px 14px;border-radius:12px;border:2px solid var(--brand)}
+    .pin-slot-row{display:flex;justify-content:center;gap:12px;margin:10px 0 6px}
+    .pin-slot{width:50px;height:56px;border-radius:14px;border:2px solid var(--line);background:var(--surface-2);display:grid;place-items:center;font-size:24px;font-weight:800;color:var(--ink);transition:.15s}
+    .pin-slot.filled{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);transform:scale(1.03)}
+    .pin-slot.active{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 20%,transparent)}
+    .pin-pad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:260px;margin:8px auto 0;width:100%}
+    .pin-pad-btn{height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:18px;font-weight:700;cursor:pointer;display:grid;place-items:center;user-select:none;transition:.12s}
+    .pin-pad-btn:hover{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+    .pin-pad-btn:active{transform:scale(.95)}
+    .pin-pad-btn.sub{font-size:11.5px;font-weight:600;color:var(--muted)}
+    @keyframes lhPinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+    .pin-shake{animation:lhPinShake .35s ease}
+    #lh-ss-blackout{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;background:#000000 !important;z-index:2147483647 !important;display:none;transition:none !important;pointer-events:auto !important;user-select:none !important}
+    html.lh-ss-active,html.lh-ss-active body{background:#000000 !important;transition:none !important}
+    html.lh-ss-active body > *:not(#lh-ss-blackout){visibility:hidden !important;opacity:0 !important;filter:brightness(0) !important;transition:none !important}
+    html.lh-ss-active #lh-ss-blackout{display:block !important}
+    @media print{html,body{background:#000000 !important}body *{visibility:hidden !important;opacity:0 !important}}
+  `;
+  document.head.appendChild(st);
+  try {
+    if (window.top && window.top !== window && window.top.document && !window.top.document.getElementById('lh-chat-sec-css')) {
+      const tst = window.top.document.createElement('style');
+      tst.id = 'lh-chat-sec-css';
+      tst.textContent = st.textContent;
+      window.top.document.head.appendChild(tst);
+    }
+  } catch { /* cross-origin safe */ }
+}
+
+let _blackPngBlobPromise = null;
+function getBlackPngBlob() {
+  if (_blackPngBlobPromise) return _blackPngBlobPromise;
+  _blackPngBlobPromise = new Promise((resolve) => {
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = 1920;
+      cv.height = 1080;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      cv.toBlob((b) => resolve(b), 'image/png');
+    } catch {
+      resolve(null);
+    }
+  });
+  return _blackPngBlobPromise;
+}
+
+async function overwriteClipboardWithBlackImage() {
+  try {
+    if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+      const blob = await getBlackPngBlob();
+      if (blob) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        return;
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText('');
+    }
+  } catch {
+    try { await navigator.clipboard?.writeText?.(''); } catch { /* ignore */ }
+  }
+}
+
+let _antiSsInstalled = false;
+let _antiSsTimer = 0;
+let _lastToastTs = 0;
+
+function isChatRouteActive() {
+  const h = (location.hash || '').slice(1).split('/')[0];
+  if (['school-chat', 'teacher-chat', 'counseling', 'chatmod'].includes(h)) return true;
+  if (document.querySelector('.chat-body, .school-chat-card, .chat-layout')) return true;
+  try {
+    if (window.top && window.top !== window) {
+      const th = (window.top.location.hash || '').slice(1).split('/')[0];
+      if (['school-chat', 'teacher-chat', 'counseling', 'chatmod'].includes(th)) return true;
+    }
+  } catch { /* ignore */ }
+  return false;
+}
+
+export const isAntiScreenshotOn = (uid) => !uid || localStorage.getItem(`lh_chat_antiss_${uid}`) !== '0';
+
+function setDomBlackout(active) {
+  const docs = [document];
+  try {
+    if (window.top && window.top !== window && window.top.document) docs.push(window.top.document);
+  } catch { /* ignore */ }
+  for (const d of docs) {
+    let veil = d.getElementById('lh-ss-blackout');
+    if (!veil && d.body) {
+      veil = d.createElement('div');
+      veil.id = 'lh-ss-blackout';
+      veil.onclick = () => restoreFromBlackout();
+      d.body.appendChild(veil);
+    }
+    if (active) {
+      d.documentElement.classList.add('lh-ss-active');
+      if (veil) veil.style.display = 'block';
+    } else {
+      d.documentElement.classList.remove('lh-ss-active');
+      if (veil) veil.style.display = 'none';
+    }
+  }
+}
+
+export function triggerScreenshotBlackout(reason = '', holdMs = 1800) {
+  ensureChatSecurityStyles();
+  clearTimeout(_antiSsTimer);
+  setDomBlackout(true);
+  overwriteClipboardWithBlackImage();
+  if (holdMs > 0) {
+    _antiSsTimer = setTimeout(() => {
+      const topFocused = (() => {
+        try { return window.top.document.hasFocus(); } catch { return document.hasFocus(); }
+      })();
+      if (topFocused && !document.hidden) {
+        setDomBlackout(false);
+        if (reason && Date.now() - _lastToastTs > 2500) {
+          _lastToastTs = Date.now();
+          toast('🛡️ Chống chụp màn hình: Đã chuyển màn hình sang màu đen để bảo vệ tin nhắn.', 'warn', 3200);
+        }
+      }
+    }, holdMs);
+  }
+}
+
+function restoreFromBlackout() {
+  clearTimeout(_antiSsTimer);
+  setDomBlackout(false);
+}
+
+function installAntiScreenshotListeners() {
+  if (_antiSsInstalled || typeof window === 'undefined') return;
+  _antiSsInstalled = true;
+  ensureChatSecurityStyles();
+  getBlackPngBlob();
+
+  const shouldProtect = () => isChatRouteActive() && isAntiScreenshotOn(window._lhChatUid || '');
+
+  const onKey = (e) => {
+    if (!shouldProtect()) return;
+    const k = e.key || '';
+    const code = e.code || '';
+    const kc = e.keyCode || e.which || 0;
+    const isPrtSc = k === 'PrintScreen' || code === 'PrintScreen' || kc === 44 || k === 'Snapshot';
+    const isWinShiftS = (e.metaKey && e.shiftKey && ['s', 'S', '3', '4', '5', '6'].includes(k));
+    const isMetaKey = k === 'Meta' || k === 'OS' || e.metaKey;
+    const isCtrlShiftCap = (e.ctrlKey && e.shiftKey && ['s', 'S', 'p', 'P', 'i', 'I', 'x', 'X'].includes(k));
+    const isCtrlAltCap = (e.ctrlKey && e.altKey && ['a', 'A', 's', 'S', 'p', 'P'].includes(k));
+    const isCtrlP = ((e.ctrlKey || e.metaKey) && (k === 'p' || k === 'P'));
+
+    if (isPrtSc || isWinShiftS || isMetaKey || isCtrlShiftCap || isCtrlAltCap || isCtrlP) {
+      if (isPrtSc || isWinShiftS || isCtrlShiftCap || isCtrlP) {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+      }
+      triggerScreenshotBlackout(isMetaKey ? '' : 'blocked', isMetaKey ? 1400 : 2200);
+    }
+  };
+
+  const onWindowBlur = () => {
+    if (!shouldProtect()) return;
+    // Khi công cụ chụp màn hình (Snipping Tool Win+Shift+S, Zalo, Lightshot, App Switcher) vừa kích hoạt,
+    // cửa sổ lập tức mất tiêu điểm -> phủ đen toàn bộ màn hình #000000 ngay tức thì (0ms)
+    const stillInsideSameApp = (() => {
+      try {
+        return window.top !== window && (window.top.document.hasFocus() || document.hasFocus());
+      } catch {
+        return false;
+      }
+    })();
+    if (!stillInsideSameApp) {
+      setDomBlackout(true);
+    }
+  };
+
+  const onWindowFocus = () => {
+    restoreFromBlackout();
+  };
+
+  const onVisChange = () => {
+    if (document.hidden && shouldProtect()) {
+      setDomBlackout(true);
+    } else if (!document.hidden) {
+      restoreFromBlackout();
+    }
+  };
+
+  const onTouchStart = (e) => {
+    if (!shouldProtect()) return;
+    // Chặn thao tác vuốt 3 ngón tay chụp màn hình trên điện thoại Android / iOS
+    if (e.touches && e.touches.length >= 3) {
+      triggerScreenshotBlackout('blocked', 2200);
+    }
+  };
+
+  const bindTarget = (win) => {
+    try {
+      win.addEventListener('keydown', onKey, true);
+      win.addEventListener('keyup', onKey, true);
+      win.addEventListener('blur', onWindowBlur, true);
+      win.addEventListener('focus', onWindowFocus, true);
+      win.addEventListener('pointerdown', () => {
+        if (win.document.hasFocus()) restoreFromBlackout();
+      }, true);
+      win.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+      win.document.addEventListener('visibilitychange', onVisChange, true);
+    } catch { /* ignore */ }
+  };
+
+  bindTarget(window);
+  if (window.top && window.top !== window) bindTarget(window.top);
+
+  // Chặn API quay/chụp màn hình trình duyệt (getDisplayMedia) khi đang ở trong khung chat
+  try {
+    if (navigator.mediaDevices?.getDisplayMedia && !navigator.mediaDevices._lhGuarded) {
+      const origGdm = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices._lhGuarded = true;
+      navigator.mediaDevices.getDisplayMedia = async function (...args) {
+        if (shouldProtect()) {
+          triggerScreenshotBlackout('blocked', 3000);
+          throw new Error('Chính sách bảo mật không cho phép quay hoặc chụp màn hình tin nhắn.');
+        }
+        return origGdm(...args);
+      };
+    }
+  } catch { /* ignore */ }
+}
+
+const hashPin = (pin, uid) => {
+  let h = 2166136261;
+  const s = `${uid}|LH-CHAT-PIN-V1|${pin}`;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return 'pin_' + h.toString(16).padStart(8, '0');
+};
+
+export const isChatPinSet = (uid) => !!uid && !!localStorage.getItem(`lh_chat_pin_${uid}`);
+export const isChatPinDisabled = (uid) => !!uid && localStorage.getItem(`lh_chat_pin_off_${uid}`) === '1';
+export const isChatBlurOn = (uid) => !!uid && localStorage.getItem(`lh_chat_blur_${uid}`) === '1';
+export const isChatUnlocked = (uid) => isChatPinDisabled(uid) || !isChatPinSet(uid) || sessionStorage.getItem(`lh_chat_unlocked_${uid}`) === '1';
+
+export function verifyAccountPasswordModal({
+  title = 'Xác nhận mật khẩu tài khoản',
+  sub = 'Bảo mật 2 lớp · Bắt buộc nhập mật khẩu đăng nhập',
+  message = 'Vui lòng nhập mật khẩu đăng nhập tài khoản hiện tại của bạn để tắt hoặc đặt lại Mã PIN bảo mật.',
+  okLabel = 'Xác nhận & Tắt mã PIN',
+  onVerified,
+} = {}) {
+  modal({
+    title,
+    sub,
+    body: `<form id="verifyAccPwForm" class="stack" style="gap:12px">
+      <div class="card soft pad row nowrap" style="gap:10px;background:var(--warn-soft);border-color:transparent">
+        <span class="avatar sm sq" style="background:var(--warn);color:#fff;flex:none">${icon('key')}</span>
+        <div class="xs ink2">${message}</div>
+      </div>
+      <div class="field">
+        <label for="verifyAccPwInp">Mật khẩu đăng nhập tài khoản</label>
+        <input id="verifyAccPwInp" class="input" type="password" placeholder="Nhập mật khẩu tài khoản của bạn…" autocomplete="current-password" required>
+      </div>
+    </form>`,
+    foot: `<button class="btn ghost" data-close>Hủy</button><button class="btn danger" id="verifyAccPwBtn">${icon('check')} ${esc(okLabel)}</button>`,
+    onMount: (m, close) => {
+      const inp = $('#verifyAccPwInp', m);
+      const btn = $('#verifyAccPwBtn', m);
+      setTimeout(() => inp?.focus(), 60);
+      const submit = async () => {
+        const password = (inp?.value || '').trim();
+        if (!password) return toast('Vui lòng nhập mật khẩu tài khoản.', 'warn');
+        await withBusy(btn, async () => {
+          try {
+            if (window._lhApi) {
+              await window._lhApi.post('api/auth/verify-password', { password });
+            }
+            close();
+            onVerified?.();
+          } catch (er) {
+            inp.value = '';
+            inp.focus();
+            toast(er?.message || 'Mật khẩu tài khoản không đúng. Không thể tắt mã PIN.', 'bad', 3200);
+          }
+        });
+      };
+      btn.onclick = submit;
+      $('#verifyAccPwForm', m).onsubmit = (e) => { e.preventDefault(); submit(); };
+    },
+  });
+}
+
+export function lockChatSession(uid) {
+  if (!uid) return;
+  sessionStorage.removeItem(`lh_chat_unlocked_${uid}`);
+}
+
+export function bindPrivacyBlurBody(cb, uid) {
+  ensureChatSecurityStyles();
+  installAntiScreenshotListeners();
+  window._lhChatUid = uid || '';
+  try {
+    window.AndroidSecurity?.setSecureScreen?.(isAntiScreenshotOn(uid));
+  } catch { /* ignore */ }
+  if (!cb) return;
+  cb.classList.toggle('chat-privacy-blur', isChatBlurOn(uid));
+  if (!cb._blurBound) {
+    cb._blurBound = true;
+    cb.addEventListener('click', (e) => {
+      if (!cb.classList.contains('chat-privacy-blur')) return;
+      const msg = e.target.closest('.msg');
+      if (msg) msg.classList.toggle('reveal');
+    });
+  }
+}
+
+export function chatSecurityBannerHtml({ securityCode = '', isAnon = false, channel = 'chat', userId = '' } = {}) {
+  ensureChatSecurityStyles();
+  installAntiScreenshotListeners();
+  window._lhChatUid = userId || '';
+  const shortCode = securityCode ? securityCode.slice(0, 9) : 'AES-256';
+  const blurOn = isChatBlurOn(userId);
+  const pinSet = isChatPinSet(userId);
+  const antiSsOn = isAntiScreenshotOn(userId);
+  const modeLabel = channel === 'school'
+    ? (isAnon ? 'Ẩn danh HMAC · Chống chụp MH' : 'Mã hóa E2EE · Chống chụp MH')
+    : (isAnon ? 'Ẩn danh 2 lớp · Chống chụp MH' : 'Mã hóa E2EE · Chống chụp MH');
+  return `<div class="chat-sec-bar">
+    <div class="sec-left">
+      <span class="sec-dot" title="Đang mã hóa AES-256-GCM & Chống chụp màn hình"></span>
+      <span class="truncate"><b>Bảo mật AES-256-GCM</b> · ${esc(modeLabel)}</span>
+      ${securityCode ? `<span class="sec-code hide-sm" title="Mã vân tay bảo mật: ${esc(securityCode)}">${ icon('lock') } ${esc(shortCode)}</span>` : ''}
+      ${antiSsOn ? `<span class="badge ok hide-sm" style="font-size:10px;padding:1px 6px" title="Khi chụp màn hình, toàn bộ màn hình sẽ chuyển sang màu đen">${icon('shieldCheck')} Chống chụp MH</span>` : ''}
+      ${blurOn ? `<span class="badge violet" style="font-size:10px;padding:1px 6px">${icon('eyeOff')} Chống nhìn trộm</span>` : ''}
+    </div>
+    <div class="sec-actions">
+      ${pinSet && channel !== 'school' ? `<button type="button" class="chat-sec-btn warn" data-chat-lock-now title="Khóa hộp thư ngay bằng mã PIN">${icon('lock')} Khóa ngay</button>` : ''}
+      <button type="button" class="chat-sec-btn" data-chat-sec-open title="Xem chứng nhận mã hóa, chống chụp màn hình đen, cài đặt mã PIN khóa tin nhắn & chống nhìn trộm">${icon('shieldCheck')} Bảo mật${pinSet ? ' · PIN Bật' : ''}</button>
+    </div>
+  </div>`;
+}
+
+export function ensureChatPinUnlocked(uid, view, titleLabel, onUnlocked) {
+  ensureChatSecurityStyles();
+  if (isChatUnlocked(uid)) return false;
+  view.innerHTML = `<div class="chat-pin-gate stack" style="align-items:center;gap:10px">
+    <span class="avatar lg sq" style="background:var(--brand-soft);color:var(--brand);width:56px;height:56px">${icon('lock')}</span>
+    <h2 style="margin:4px 0 0;font-size:1.2rem">Hộp thư đang được khóa bảo mật</h2>
+    <p class="small ink2" style="margin:0">Nhập <b>Mã PIN bảo mật 4 chữ số</b> của bạn để mở <b>${esc(titleLabel || 'Tin nhắn riêng tư')}</b>. Tính năng này bảo vệ tin nhắn khi người khác mượn điện thoại hoặc máy tính.</p>
+    <form id="chatPinUnlockForm" class="stack" style="align-items:center;gap:12px;width:100%;margin-top:6px">
+      <input id="chatPinInp" class="chat-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off" required>
+      <div class="row" style="gap:8px;justify-content:center">
+        <button type="submit" class="btn">${icon('unlock')} Mở khóa hộp thư</button>
+      </div>
+      <button type="button" class="btn plain sm" id="chatPinResetBtn" style="color:var(--muted);font-size:11.5px">Quên mã PIN? Xác nhận đặt lại bằng phiên đăng nhập</button>
+    </form>
+  </div>`;
+  const inp = $('#chatPinInp', view);
+  setTimeout(() => inp?.focus(), 60);
+  $('#chatPinUnlockForm', view).onsubmit = (e) => {
+    e.preventDefault();
+    const val = (inp.value || '').trim();
+    const saved = localStorage.getItem(`lh_chat_pin_${uid}`);
+    if (hashPin(val, uid) === saved) {
+      sessionStorage.setItem(`lh_chat_unlocked_${uid}`, '1');
+      toast('Đã mở khóa hộp thư bảo mật.', 'ok', 1800);
+      onUnlocked?.();
+    } else {
+      inp.value = '';
+      inp.focus();
+      toast('Mã PIN không đúng. Vui lòng thử lại.', 'bad');
+    }
+  };
+  $('#chatPinResetBtn', view).onclick = () => {
+    verifyAccountPasswordModal({
+      title: 'Nhập mật khẩu để tắt / đặt lại Mã PIN',
+      message: 'Nhập mật khẩu đăng nhập tài khoản của bạn để tắt khóa Mã PIN hộp thư.',
+      okLabel: 'Xác nhận & Tắt PIN',
+      onVerified: () => {
+        localStorage.removeItem(`lh_chat_pin_${uid}`);
+        localStorage.setItem(`lh_chat_pin_off_${uid}`, '1');
+        sessionStorage.setItem(`lh_chat_unlocked_${uid}`, '1');
+        toast('Đã xác thực mật khẩu và tắt khóa Mã PIN hộp thư.', 'ok');
+        onUnlocked?.();
+      },
+    });
+  };
+  return true;
+}
+
+// ---------- Modal bắt buộc nhập Mã PIN 4 số khi bấm vào cuộc trò chuyện ----------
+export function promptChatPinModal({ userId = '', peerName = '', titleLabel = 'Cuộc trò chuyện', onSuccess } = {}) {
+  ensureChatSecurityStyles();
+  const uid = userId || window._lhChatUid || 'default';
+  if (isChatPinDisabled(uid)) {
+    onSuccess?.();
+    return;
+  }
+  let mode = isChatPinSet(uid) ? 'verify' : 'create';
+  let val = '';
+
+  modal({
+    title: mode === 'verify' ? 'Nhập mã PIN để vào chat' : 'Thiết lập mã PIN để vào chat',
+    sub: peerName ? `Cuộc trò chuyện với ${peerName}` : titleLabel,
+    body: '<div id="pinModalRoot"></div>',
+    foot: '<button class="btn ghost" data-close>Đóng</button><button class="btn" id="pinSubmitBtn"></button>',
+    onMount: (m, close) => {
+      const root = $('#pinModalRoot', m);
+      const submitBtn = $('#pinSubmitBtn', m);
+      const renderModal = () => {
+        const mTitle = m.querySelector('.modal-head h3');
+        if (mode === 'pw-disable' || mode === 'pw-reset') {
+          if (mTitle) mTitle.textContent = mode === 'pw-disable' ? 'Nhập mật khẩu để Tắt mã PIN' : 'Nhập mật khẩu để Đặt lại mã PIN';
+          if (submitBtn) submitBtn.innerHTML = `${icon('key')} ${mode === 'pw-disable' ? 'Xác nhận & Tắt PIN' : 'Xác nhận & Đặt lại PIN'}`;
+          root.innerHTML = `<form id="pinPwVerifyForm" class="stack" style="gap:12px;padding:4px 0">
+            <div class="card soft pad row nowrap" style="gap:10px;background:var(--warn-soft);border-color:transparent">
+              <span class="avatar sm sq" style="background:var(--warn);color:#fff;flex:none">${icon('key')}</span>
+              <div class="xs ink2">${mode === 'pw-disable'
+                ? 'Để <b>tắt mã PIN bảo mật</b>, vui lòng nhập <b>Mật khẩu đăng nhập tài khoản</b> hiện tại của bạn.'
+                : 'Để <b>xóa mã PIN cũ và tạo mã PIN mới</b>, vui lòng nhập <b>Mật khẩu đăng nhập tài khoản</b> của bạn.'}</div>
+            </div>
+            <div class="field">
+              <label for="pinPwInp">Mật khẩu đăng nhập tài khoản</label>
+              <input id="pinPwInp" class="input" type="password" placeholder="Nhập mật khẩu đăng nhập tài khoản…" autocomplete="current-password" required>
+            </div>
+            <div class="row between">
+              <button type="button" class="btn ghost sm" id="pinBackToPad">${icon('arrowLeft')} Quay lại nhập PIN</button>
+            </div>
+          </form>`;
+          const pwInp = $('#pinPwInp', root);
+          setTimeout(() => pwInp?.focus(), 50);
+          $('#pinBackToPad', root).onclick = () => {
+            mode = isChatPinSet(uid) ? 'verify' : 'create';
+            val = '';
+            renderModal();
+          };
+          const doVerifyPw = async () => {
+            const password = (pwInp?.value || '').trim();
+            if (!password) return toast('Vui lòng nhập mật khẩu đăng nhập tài khoản.', 'warn');
+            await withBusy(submitBtn, async () => {
+              try {
+                if (window._lhApi) {
+                  await window._lhApi.post('api/auth/verify-password', { password });
+                }
+                if (mode === 'pw-disable') {
+                  localStorage.removeItem(`lh_chat_pin_${uid}`);
+                  localStorage.setItem(`lh_chat_pin_off_${uid}`, '1');
+                  sessionStorage.setItem(`lh_chat_unlocked_${uid}`, '1');
+                  toast('Đã xác thực mật khẩu và tắt khóa Mã PIN!', 'ok', 2200);
+                  close();
+                  onSuccess?.();
+                } else {
+                  localStorage.removeItem(`lh_chat_pin_${uid}`);
+                  localStorage.removeItem(`lh_chat_pin_off_${uid}`);
+                  mode = 'create';
+                  val = '';
+                  renderModal();
+                  toast('Mật khẩu hợp lệ! Hãy nhập 4 chữ số để đặt mã PIN mới.', 'ok', 2500);
+                }
+              } catch (er) {
+                pwInp.value = '';
+                pwInp.focus();
+                toast(er?.message || 'Mật khẩu tài khoản không đúng. Không thể tắt mã PIN.', 'bad', 3200);
+              }
+            });
+          };
+          if (submitBtn) submitBtn.onclick = doVerifyPw;
+          $('#pinPwVerifyForm', root).onsubmit = (e) => { e.preventDefault(); doVerifyPw(); };
+          return;
+        }
+
+        mode = isChatPinSet(uid) ? 'verify' : 'create';
+        if (mTitle) mTitle.textContent = mode === 'verify' ? 'Nhập mã PIN để vào chat' : 'Thiết lập mã PIN để vào chat';
+        if (submitBtn) submitBtn.innerHTML = `${icon(mode === 'verify' ? 'unlock' : 'check')} ${mode === 'verify' ? 'Mở khóa & Vào chat' : 'Lưu mã PIN & Vào chat'}`;
+        root.innerHTML = `<div class="stack" style="align-items:center;text-align:center;gap:8px;padding:4px 0">
+          <span class="avatar lg sq" style="background:var(--brand-soft);color:var(--brand);width:52px;height:52px">${icon('lock')}</span>
+          <b style="font-size:1.05rem">${mode === 'verify' ? `Mở cuộc trò chuyện ${peerName ? `với ${esc(peerName)}` : ''}` : 'Tạo Mã PIN bảo mật 4 chữ số'}</b>
+          <p class="xs ink2" style="max-width:340px;margin:0">${mode === 'verify'
+            ? 'Vui lòng nhập <b>Mã PIN 4 chữ số</b> của bạn để mở và xem nội dung tin nhắn.'
+            : 'Lần đầu mở trò chuyện: Nhập <b>4 chữ số bất kỳ</b> để đặt làm Mã PIN bảo mật. Từ lần sau, khi bấm vào cuộc trò chuyện sẽ yêu cầu mã PIN này.'}</p>
+          <div class="pin-slot-row" id="pinSlots">
+            ${[0, 1, 2, 3].map(i => `<div class="pin-slot ${val.length > i ? 'filled' : ''} ${val.length === i ? 'active' : ''}">${val.length > i ? (mode === 'create' ? esc(val[i]) : '●') : ''}</div>`).join('')}
+          </div>
+          <input id="pinHiddenInp" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" value="${esc(val)}" autocomplete="off" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" aria-label="Mã PIN 4 số">
+          <div class="pin-pad-grid">
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" class="pin-pad-btn" data-d="${n}">${n}</button>`).join('')}
+            <button type="button" class="pin-pad-btn sub" id="pinResetAct" title="Đặt lại mã PIN bằng mật khẩu">${mode === 'verify' ? 'Quên PIN?' : 'Xóa hết'}</button>
+            <button type="button" class="pin-pad-btn" data-d="0">0</button>
+            <button type="button" class="pin-pad-btn sub" id="pinBackAct" title="Xóa 1 số">⌫ Xóa</button>
+          </div>
+          <div class="row" style="gap:8px;justify-content:center;margin-top:4px">
+            <button type="button" class="btn plain sm" id="pinDisableAct" style="color:var(--bad);font-size:11.5px">${icon('key')} Tắt khóa Mã PIN (Nhập mật khẩu tài khoản)</button>
+          </div>
+        </div>`;
+
+        const updateSlots = () => {
+          const slots = $$('.pin-slot', root);
+          slots.forEach((s, i) => {
+            s.classList.toggle('filled', val.length > i);
+            s.classList.toggle('active', val.length === i);
+            s.textContent = val.length > i ? (mode === 'create' ? val[i] : '●') : '';
+          });
+        };
+
+        const handleVerifyOrSave = () => {
+          if (!/^\d{4}$/.test(val)) {
+            toast('Vui lòng nhập đủ 4 chữ số cho mã PIN.', 'warn');
+            return;
+          }
+          if (mode === 'create') {
+            localStorage.setItem(`lh_chat_pin_${uid}`, hashPin(val, uid));
+            localStorage.removeItem(`lh_chat_pin_off_${uid}`);
+            sessionStorage.setItem(`lh_chat_unlocked_${uid}`, '1');
+            toast('Đã lưu mã PIN 4 số và mở cuộc trò chuyện!', 'ok', 2000);
+            close();
+            onSuccess?.();
+            return;
+          }
+          const saved = localStorage.getItem(`lh_chat_pin_${uid}`);
+          if (hashPin(val, uid) === saved) {
+            sessionStorage.setItem(`lh_chat_unlocked_${uid}`, '1');
+            close();
+            onSuccess?.();
+          } else {
+            const sr = $('#pinSlots', root);
+            if (sr) {
+              sr.classList.remove('pin-shake');
+              void sr.offsetWidth;
+              sr.classList.add('pin-shake');
+            }
+            val = '';
+            updateSlots();
+            toast('Mã PIN không đúng. Vui lòng nhập lại.', 'bad', 2200);
+          }
+        };
+
+        const pushDigit = (d) => {
+          if (val.length >= 4) return;
+          val += String(d);
+          updateSlots();
+          if (val.length === 4 && mode === 'verify') {
+            setTimeout(handleVerifyOrSave, 90);
+          }
+        };
+
+        $$('[data-d]', root).forEach(b => b.onclick = () => pushDigit(b.dataset.d));
+        $('#pinBackAct', root).onclick = () => {
+          if (val.length > 0) {
+            val = val.slice(0, -1);
+            updateSlots();
+          }
+        };
+        $('#pinResetAct', root).onclick = () => {
+          if (mode === 'create') {
+            val = '';
+            updateSlots();
+            return;
+          }
+          mode = 'pw-reset';
+          renderModal();
+        };
+        $('#pinDisableAct', root).onclick = () => {
+          mode = 'pw-disable';
+          renderModal();
+        };
+        if (submitBtn) submitBtn.onclick = handleVerifyOrSave;
+      };
+
+      const onKey = (e) => {
+        if (!document.body.contains(m)) {
+          window.removeEventListener('keydown', onKey);
+          return;
+        }
+        if (mode === 'pw-disable' || mode === 'pw-reset') return;
+        if (/^[0-9]$/.test(e.key)) {
+          e.preventDefault();
+          const btn = m.querySelector(`[data-d="${e.key}"]`);
+          btn?.click();
+        } else if (e.key === 'Backspace') {
+          e.preventDefault();
+          $('#pinBackAct', m)?.click();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          $('#pinSubmitBtn', m)?.click();
+        }
+      };
+      window.addEventListener('keydown', onKey);
+      renderModal();
+    },
+  });
+}
+
+export function openChatSecurityModal({ channel = 'teacher', title = 'Bảo mật Tin nhắn', peerName = '', securityCode = '', userId = '', isAnon = false, onChanged } = {}) {
+  ensureChatSecurityStyles();
+  const code = securityCode || 'E2EE-8F4A-92C1-7B0D';
+  const drawBody = (m, close) => {
+    const pinSet = isChatPinSet(userId);
+    const blurOn = isChatBlurOn(userId);
+    const antiSsOn = isAntiScreenshotOn(userId);
+    m.querySelector('.modal-body').innerHTML = `<div class="stack" style="gap:14px">
+      <div class="card soft pad row nowrap" style="gap:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--ok) 12%,var(--surface)),var(--surface));border-color:color-mix(in srgb,var(--ok) 30%,var(--line))">
+        <span class="avatar sq" style="background:var(--ok);color:#fff;flex:none">${icon('shieldCheck')}</span>
+        <div class="grow" style="min-width:0">
+          <div class="row between"><b class="small" style="color:var(--ok)">Đang bảo vệ đa tầng · Chuẩn mã hóa Quân sự</b><span class="badge ok">Hoạt động 100%</span></div>
+          <p class="xs ink2" style="margin:3px 0 0">Toàn bộ tin nhắn và tệp đính kèm trong <b>${esc(title)}</b>${peerName ? ` với <b>${esc(peerName)}</b>` : ''} được mã hóa trên đường truyền, lưu trữ mã hóa và chống chụp màn hình đen toàn bộ.</p>
+        </div>
+      </div>
+
+      <div class="card pad stack" style="gap:10px;background:#09090b;color:#ffffff;border:1px solid #27272a">
+        <div class="row between" style="gap:10px">
+          <div class="row" style="gap:10px">
+            <span class="avatar sm sq" style="background:#ef4444;color:#fff;flex:none">${icon('eyeOff')}</span>
+            <div>
+              <div class="row" style="gap:6px"><b class="small" style="color:#fff">Chống chụp màn hình · Đen toàn bộ (#000000)</b><span class="badge" style="background:#22c55e;color:#fff;border:none">${antiSsOn ? 'ĐANG BẬT' : 'ĐANG TẮT'}</span></div>
+              <div class="xs" style="color:#a1a1aa;margin-top:2px">Khi nhấn phím <b>PrintScreen</b>, <b>Win+Shift+S</b>, công cụ cắt màn hình, vuốt 3 ngón tay hoặc chuyển cửa sổ để chụp, toàn bộ màn hình sẽ chuyển thành <b>màu đen tuyệt đối (#000000)</b> và ghi đè ảnh đen vào bộ nhớ tạm.</div>
+            </div>
+          </div>
+          <label class="switch" style="flex:none"><input type="checkbox" id="secAntiSsToggle" ${antiSsOn ? 'checked' : ''}><span class="track"></span></label>
+        </div>
+        <div class="row" style="gap:8px;justify-content:flex-end;border-top:1px solid #27272a;padding-top:8px">
+          <button type="button" class="btn sm" id="secTestBlackout" style="background:#ef4444;border-color:#ef4444;color:#fff">${icon('eyeOff')} Thử chụp màn hình (Xem màn hình đen)</button>
+        </div>
+      </div>
+
+      <div class="card pad stack" style="gap:8px">
+        <div class="row between">
+          <b class="small">${icon('key')} Mã vân tay xác thực phiên chat (Security Fingerprint)</b>
+          <button type="button" class="btn ghost sm" id="secCopyCode">${icon('copy')} Sao chép</button>
+        </div>
+        <div class="mono" style="padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px dashed var(--line);text-align:center;font-size:15px;font-weight:700;letter-spacing:1.5px;color:var(--brand)">${esc(code)}</div>
+        <span class="xs muted">Mã định danh mật mã học duy nhất của kênh trò chuyện này. Cả học sinh và giáo viên đều nhìn thấy cùng một mã khóa để bảo đảm không có bên thứ ba xen vào giữa.</span>
+      </div>
+
+      <div class="grid g2" style="gap:10px">
+        <div class="card soft pad stack" style="gap:4px">
+          <b class="xs" style="color:var(--brand)">${icon('lock')} 1. Mã hóa đường truyền & Lưu trữ</b>
+          <span class="xs ink2">Gói tin nhị phân <b>ECDH P-256 + AES-256-GCM</b>; cơ sở dữ liệu máy chủ tự động mã hóa nội dung tin nhắn ở trạng thái nghỉ (At-Rest Encryption).</span>
+        </div>
+        <div class="card soft pad stack" style="gap:4px">
+          <b class="xs" style="color:var(--violet)">${icon('eyeOff')} 2. Cô lập 1-1 & Bảo vệ Ẩn danh</b>
+          <span class="xs ink2">${channel === 'school' ? 'Khi bật Ẩn danh, mã học sinh và lớp học được tách bỏ hoàn toàn khỏi gói tin gửi tới người xem.' : 'Hộp thư được cô lập tuyệt đối 1-1 giữa học sinh và đúng giáo viên/chuyên viên nhận tin; các tài khoản khác không thể đọc.'}</span>
+        </div>
+      </div>
+
+      <div class="card pad stack" style="gap:10px">
+        <div class="row between">
+          <div>
+            <b class="small">${icon('eyeOff')} Chống nhìn trộm trên màn hình (Làm mờ tin nhắn)</b>
+            <div class="xs muted">Tự động làm mờ nội dung tin nhắn trên màn hình; chỉ hiển thị rõ khi bạn chạm hoặc di chuột vào tin nhắn.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="secBlurToggle" ${blurOn ? 'checked' : ''}><span class="track"></span></label>
+        </div>
+      </div>
+
+      ${userId ? `<div class="card pad stack" style="gap:10px">
+        <div class="row between">
+          <div>
+            <b class="small">${icon('lock')} Khóa hộp thư bằng Mã PIN 4 số</b>
+            <div class="xs muted">Yêu cầu nhập mã PIN 4 chữ số khi bấm vào cuộc trò chuyện Giáo viên & Tư vấn tâm lý. <b>Khi tắt hoặc đặt lại mã PIN bắt buộc phải nhập mật khẩu tài khoản.</b></div>
+          </div>
+          <div class="row" style="gap:8px">
+            ${pinSet ? `<span class="badge ok">Đã bật PIN</span>` : isChatPinDisabled(userId) ? `<span class="badge warn">Đã tắt PIN</span>` : `<span class="badge">Mặc định Bật</span>`}
+            <label class="switch" title="Bật / Tắt khóa Mã PIN (Tắt PIN cần mật khẩu tài khoản)"><input type="checkbox" id="secPinMasterToggle" ${!isChatPinDisabled(userId) ? 'checked' : ''}><span class="track"></span></label>
+          </div>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <input id="secPinInput" class="input mono" type="password" inputmode="numeric" maxlength="4" placeholder="${pinSet ? 'Nhập 4 số mới để đổi PIN' : 'Nhập 4 chữ số (VD: 2026)'}" style="max-width:210px">
+          <button type="button" class="btn sm" id="secSavePin">${icon('check')} ${pinSet ? 'Đổi mã PIN' : 'Lưu / Bật khóa PIN'}</button>
+          ${pinSet ? `<button type="button" class="btn soft sm" id="secLockNow">${icon('lock')} Khóa hộp thư ngay</button><button type="button" class="btn ghost sm" id="secRemovePin" style="color:var(--bad)">${icon('key')} Tắt PIN (Nhập mật khẩu)</button>` : ''}
+        </div>
+      </div>` : ''}
+    </div>`;
+
+    $('#secCopyCode', m).onclick = () => copyText(code, 'Đã sao chép mã vân tay bảo mật');
+    $('#secAntiSsToggle', m).onchange = (e) => {
+      if (e.target.checked) localStorage.removeItem(`lh_chat_antiss_off_${userId}`);
+      else localStorage.setItem(`lh_chat_antiss_off_${userId}`, '1');
+      toast(e.target.checked ? 'Đã bật Chống chụp màn hình (Đen toàn bộ).' : 'Đã tạm tắt Chống chụp màn hình.', 'ok', 2000);
+      drawBody(m, close);
+      onChanged?.();
+    };
+    $('#secTestBlackout', m).onclick = () => {
+      triggerScreenshotBlackout('test', 3000);
+    };
+    $('#secBlurToggle', m).onchange = (e) => {
+      if (e.target.checked) localStorage.setItem(`lh_chat_blur_${userId}`, '1');
+      else localStorage.removeItem(`lh_chat_blur_${userId}`);
+      toast(e.target.checked ? 'Đã bật chế độ làm mờ chống nhìn trộm.' : 'Đã tắt chế độ làm mờ tin nhắn.', 'ok', 2000);
+      onChanged?.();
+    };
+    const requestDisablePinWithPassword = () => {
+      verifyAccountPasswordModal({
+        title: 'Nhập mật khẩu để tắt Mã PIN',
+        sub: 'Bảo vệ hộp thư · Xác thực chính chủ',
+        message: 'Để tắt khóa Mã PIN bảo mật tin nhắn, vui lòng nhập <b>Mật khẩu đăng nhập tài khoản</b> hiện tại của bạn.',
+        okLabel: 'Xác nhận & Tắt PIN',
+        onVerified: () => {
+          localStorage.removeItem(`lh_chat_pin_${userId}`);
+          localStorage.setItem(`lh_chat_pin_off_${userId}`, '1');
+          sessionStorage.setItem(`lh_chat_unlocked_${userId}`, '1');
+          toast('Đã xác thực mật khẩu và tắt khóa mã PIN hộp thư.', 'ok');
+          drawBody(m, close);
+          onChanged?.();
+        },
+      });
+    };
+    if ($('#secPinMasterToggle', m)) {
+      $('#secPinMasterToggle', m).onchange = (e) => {
+        if (!e.target.checked) {
+          e.target.checked = true; // Giữ trạng thái bật cho tới khi xác thực mật khẩu thành công
+          requestDisablePinWithPassword();
+        } else {
+          localStorage.removeItem(`lh_chat_pin_off_${userId}`);
+          toast('Đã bật lại chế độ bảo vệ bằng Mã PIN.', 'ok');
+          drawBody(m, close);
+          onChanged?.();
+        }
+      };
+    }
+    if ($('#secSavePin', m)) {
+      $('#secSavePin', m).onclick = () => {
+        const val = ($('#secPinInput', m).value || '').trim();
+        if (!/^\d{4}$/.test(val)) return toast('Vui lòng nhập đúng 4 chữ số cho mã PIN.', 'warn');
+        const saveNewPin = () => {
+          localStorage.setItem(`lh_chat_pin_${userId}`, hashPin(val, userId));
+          localStorage.removeItem(`lh_chat_pin_off_${userId}`);
+          sessionStorage.setItem(`lh_chat_unlocked_${userId}`, '1');
+          toast('Đã thiết lập mã PIN bảo mật hộp thư!', 'ok');
+          drawBody(m, close);
+          onChanged?.();
+        };
+        if (pinSet) {
+          verifyAccountPasswordModal({
+            title: 'Nhập mật khẩu để đổi Mã PIN',
+            sub: 'Xác thực chính chủ trước khi đổi mã PIN',
+            message: 'Vui lòng nhập <b>Mật khẩu đăng nhập tài khoản</b> hiện tại của bạn để xác nhận đổi sang mã PIN mới.',
+            okLabel: 'Xác nhận & Đổi PIN',
+            onVerified: saveNewPin,
+          });
+        } else {
+          saveNewPin();
+        }
+      };
+    }
+    if ($('#secRemovePin', m)) {
+      $('#secRemovePin', m).onclick = requestDisablePinWithPassword;
+    }
+    if ($('#secLockNow', m)) {
+      $('#secLockNow', m).onclick = () => {
+        lockChatSession(userId);
+        close();
+        toast('Đã khóa bảo mật hộp thư.', 'ok', 1800);
+        onChanged?.({ lockedNow: true });
+      };
+    }
+  };
+
+  modal({
+    title: 'Trung tâm Bảo mật Tin nhắn & Kênh Chat',
+    sub: `${title}${peerName ? ` · ${peerName}` : ''}`,
+    size: 'wide',
+    body: '<div></div>',
+    foot: '<button class="btn" data-close>Đóng</button>',
+    onMount: (m, close) => drawBody(m, close),
+  });
 }

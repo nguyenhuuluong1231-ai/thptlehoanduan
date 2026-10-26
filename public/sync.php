@@ -141,12 +141,103 @@ function _lhGetDbRev(string $dbFile, string $revFile): int {
   return max($rev, $fm);
 }
 
-function _lhLoadRawDb(string $dbFile, string $backupDir = ''): ?array {
+function _lhChatCipherKey(string $secret): string {
+  return hash('sha256', $secret . '|chat-at-rest-v1', true);
+}
+
+function _lhEncryptMsgItem(array $m, string $key): array {
+  if (isset($m['__enc']) && is_string($m['__enc']) && strpos($m['__enc'], 'aes256gcm:') === 0) {
+    return $m;
+  }
+  $payload = json_encode([
+    't' => (string)($m['text'] ?? ''),
+    'a' => isset($m['attachments']) && is_array($m['attachments']) ? $m['attachments'] : [],
+  ], JSON_UNESCAPED_UNICODE);
+  if ($payload === false) return $m;
+  $iv = random_bytes(12);
+  $tag = '';
+  $ct = openssl_encrypt($payload, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag, '', 16);
+  if ($ct === false || strlen($tag) !== 16) return $m;
+  $m['__enc'] = 'aes256gcm:' . base64_encode($iv . $tag . $ct);
+  $m['text'] = '';
+  $m['attachments'] = [];
+  return $m;
+}
+
+function _lhDecryptMsgItem(array $m, string $key): array {
+  if (!isset($m['__enc']) || !is_string($m['__enc']) || strpos($m['__enc'], 'aes256gcm:') !== 0) {
+    return $m;
+  }
+  $raw = base64_decode(substr($m['__enc'], 10), true);
+  unset($m['__enc']);
+  if ($raw === false || strlen($raw) < 28) return $m;
+  $iv = substr($raw, 0, 12);
+  $tag = substr($raw, 12, 16);
+  $ct = substr($raw, 28);
+  $pt = openssl_decrypt($ct, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+  if ($pt === false) return $m;
+  $dec = json_decode($pt, true);
+  if (is_array($dec)) {
+    $m['text'] = (string)($dec['t'] ?? '');
+    $m['attachments'] = isset($dec['a']) && is_array($dec['a']) ? $dec['a'] : [];
+  }
+  return $m;
+}
+
+function _lhEncryptChatAtRest(array $data, string $secret): array {
+  $key = _lhChatCipherKey($secret);
+  if (isset($data['schoolChat']['messages']) && is_array($data['schoolChat']['messages'])) {
+    foreach ($data['schoolChat']['messages'] as &$m) {
+      if (is_array($m)) $m = _lhEncryptMsgItem($m, $key);
+    }
+    unset($m);
+  }
+  foreach (['teacherChat', 'counseling'] as $tk) {
+    if (isset($data[$tk]) && is_array($data[$tk])) {
+      foreach ($data[$tk] as &$t) {
+        if (isset($t['messages']) && is_array($t['messages'])) {
+          foreach ($t['messages'] as &$m) {
+            if (is_array($m)) $m = _lhEncryptMsgItem($m, $key);
+          }
+          unset($m);
+        }
+      }
+      unset($t);
+    }
+  }
+  return $data;
+}
+
+function _lhDecryptChatFromRest(array $data, string $secret): array {
+  $key = _lhChatCipherKey($secret);
+  if (isset($data['schoolChat']['messages']) && is_array($data['schoolChat']['messages'])) {
+    foreach ($data['schoolChat']['messages'] as &$m) {
+      if (is_array($m)) $m = _lhDecryptMsgItem($m, $key);
+    }
+    unset($m);
+  }
+  foreach (['teacherChat', 'counseling'] as $tk) {
+    if (isset($data[$tk]) && is_array($data[$tk])) {
+      foreach ($data[$tk] as &$t) {
+        if (isset($t['messages']) && is_array($t['messages'])) {
+          foreach ($t['messages'] as &$m) {
+            if (is_array($m)) $m = _lhDecryptMsgItem($m, $key);
+          }
+          unset($m);
+        }
+      }
+      unset($t);
+    }
+  }
+  return $data;
+}
+
+function _lhLoadRawDb(string $dbFile, string $backupDir = '', string $secret = ''): ?array {
   if (is_file($dbFile)) {
     $raw = (string)@file_get_contents($dbFile);
     $data = json_decode($raw, true);
     if (is_array($data) && isset($data['users']) && is_array($data['users'])) {
-      return $data;
+      return $secret !== '' ? _lhDecryptChatFromRest($data, $secret) : $data;
     }
   }
   // Tự động khôi phục từ bản sao lưu tức thời (.bak) hoặc bản sao lưu gần nhất nếu tệp chính bị lỗi
@@ -156,7 +247,7 @@ function _lhLoadRawDb(string $dbFile, string $backupDir = ''): ?array {
     $data = json_decode($raw, true);
     if (is_array($data) && isset($data['users']) && is_array($data['users'])) {
       @file_put_contents($dbFile, $raw, LOCK_EX);
-      return $data;
+      return $secret !== '' ? _lhDecryptChatFromRest($data, $secret) : $data;
     }
   }
   if ($backupDir !== '' && is_dir($backupDir)) {
@@ -167,7 +258,7 @@ function _lhLoadRawDb(string $dbFile, string $backupDir = ''): ?array {
       $data = json_decode($raw, true);
       if (is_array($data) && isset($data['users']) && is_array($data['users'])) {
         @file_put_contents($dbFile, $raw, LOCK_EX);
-        return $data;
+        return $secret !== '' ? _lhDecryptChatFromRest($data, $secret) : $data;
       }
     }
   }
@@ -225,8 +316,9 @@ function _lhListBackups(string $backupDir): array {
   return $out;
 }
 
-function _lhSaveRawDb(string $dbFile, array $data, string $revFile = '', string $backupDir = ''): int {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+function _lhSaveRawDb(string $dbFile, array $data, string $revFile = '', string $backupDir = '', string $secret = ''): int {
+  $diskData = $secret !== '' ? _lhEncryptChatAtRest($data, $secret) : $data;
+  $json = json_encode($diskData, JSON_UNESCAPED_UNICODE);
   if ($json === false) return 0;
   $tmpFile = $dbFile . '.tmp.' . getmypid() . '.' . mt_rand(1000, 9999);
   if (@file_put_contents($tmpFile, $json, LOCK_EX) !== false) {
@@ -309,6 +401,54 @@ function _lhIsMaskedHash(string $h): bool {
   return substr($h, -strlen('$' . LH_MASKED_TAG)) === '$' . LH_MASKED_TAG;
 }
 
+function _lhRestoreRealHashes(array $currentUsers, array $restoredUsers): array {
+  $map = [];
+  foreach ($currentUsers as $u) {
+    if (is_array($u) && isset($u['id'], $u['passwordHash']) && !_lhIsMaskedHash((string)$u['passwordHash'])) {
+      $map[(string)$u['id']] = (string)$u['passwordHash'];
+    }
+  }
+  foreach ($restoredUsers as &$ru) {
+    if (!is_array($ru) || !isset($ru['id'])) continue;
+    $id = (string)$ru['id'];
+    if ((empty($ru['passwordHash']) || _lhIsMaskedHash((string)$ru['passwordHash'])) && isset($map[$id])) {
+      $ru['passwordHash'] = $map[$id];
+    }
+  }
+  unset($ru);
+  return $restoredUsers;
+}
+
+function _lhScrubSchoolMsgForViewer(array $m, string $role, string $uid): array {
+  $mine = ($m['userId'] ?? '') === $uid;
+  $isAdmin = ($role === 'admin');
+  if (!empty($m['deleted']) || (!empty($m['recalled']) && !$isAdmin)) {
+    $m['text'] = '';
+    $m['attachments'] = [];
+  }
+  if (!empty($m['anonymous']) && !$mine && !$isAdmin) {
+    $m['userId'] = 'anon';
+    unset($m['realName'], $m['realClass']);
+    $m['avatar'] = null;
+  }
+  return $m;
+}
+
+function _lhScrubThreadForViewer(array $t, string $role): array {
+  $isAdmin = ($role === 'admin');
+  if (isset($t['messages']) && is_array($t['messages'])) {
+    foreach ($t['messages'] as &$m) {
+      if (!is_array($m)) continue;
+      if (!empty($m['recalled']) && !$isAdmin) {
+        $m['text'] = '';
+        $m['attachments'] = [];
+      }
+    }
+    unset($m);
+  }
+  return $t;
+}
+
 function _lhFilterDataForViewer(array $data, ?array $viewer): array {
   $role = $viewer['role'] ?? 'guest';
   $uid = $viewer['id'] ?? '';
@@ -366,8 +506,20 @@ function _lhFilterDataForViewer(array $data, ?array $viewer): array {
     $data['aiLogs'] = array_values(array_filter($data['aiLogs'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
     $data['reports'] = array_values(array_filter($data['reports'] ?? [], fn($x) => ($x['reporterId'] ?? '') === $uid || ($x['reporterKey'] ?? '') === $reportKey));
     $data['records'] = array_values(array_filter($data['records'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid));
-    $data['counseling'] = array_values(array_filter($data['counseling'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid || ($x['ownerKey'] ?? '') === $counselKey));
-    $data['teacherChat'] = array_values(array_filter($data['teacherChat'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid));
+    $data['counseling'] = array_values(array_map(
+      fn($t) => _lhScrubThreadForViewer($t, 'student'),
+      array_filter($data['counseling'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid || ($x['ownerKey'] ?? '') === $counselKey)
+    ));
+    $data['teacherChat'] = array_values(array_map(
+      fn($t) => _lhScrubThreadForViewer($t, 'student'),
+      array_filter($data['teacherChat'] ?? [], fn($x) => ($x['studentId'] ?? '') === $uid)
+    ));
+    if (isset($data['schoolChat']['messages']) && is_array($data['schoolChat']['messages'])) {
+      $data['schoolChat']['messages'] = array_values(array_map(
+        fn($m) => is_array($m) ? _lhScrubSchoolMsgForViewer($m, 'student', $uid) : $m,
+        $data['schoolChat']['messages']
+      ));
+    }
     $data['moods'] = array_values(array_filter($data['moods'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
     $data['surveyResponses'] = array_values(array_filter($data['surveyResponses'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
     $data['scamChecks'] = array_values(array_filter($data['scamChecks'] ?? [], fn($x) => ($x['userId'] ?? '') === $uid));
@@ -378,7 +530,29 @@ function _lhFilterDataForViewer(array $data, ?array $viewer): array {
     return $data;
   }
 
-  // Giáo viên & Ban Giám hiệu: nhận dữ liệu vận hành đầy đủ (nhưng passwordHash vẫn đã được che tag thật)
+  // Giáo viên (không phải Ban Giám hiệu): cô lập tuyệt đối hộp thư 1-1 — chỉ nhận cuộc trò chuyện gửi tới chính tài khoản giáo viên đó
+  if ($role === 'teacher') {
+    $data['teacherChat'] = array_values(array_map(
+      fn($t) => _lhScrubThreadForViewer($t, 'teacher'),
+      array_filter($data['teacherChat'] ?? [], fn($x) => ($x['teacherId'] ?? '') === $uid)
+    ));
+    $data['counseling'] = array_values(array_map(
+      fn($t) => _lhScrubThreadForViewer($t, 'teacher'),
+      array_filter($data['counseling'] ?? [], fn($x) => ($x['counselorId'] ?? '') === $uid)
+    ));
+    if (isset($data['schoolChat']['messages']) && is_array($data['schoolChat']['messages'])) {
+      $data['schoolChat']['messages'] = array_values(array_map(
+        fn($m) => is_array($m) ? _lhScrubSchoolMsgForViewer($m, 'teacher', $uid) : $m,
+        $data['schoolChat']['messages']
+      ));
+    }
+    if (isset($data['settings']['apiPin'])) {
+      unset($data['settings']['apiPin']);
+    }
+    return $data;
+  }
+
+  // Ban Giám hiệu (admin): nhận dữ liệu vận hành đầy đủ (nhưng passwordHash vẫn đã được che tag thật)
   return $data;
 }
 
@@ -407,7 +581,7 @@ function _lhMergeListById(array $orig, array $inc, bool $prependNew = true): arr
   return $out;
 }
 
-function _lhMergeSchoolMessages(array $orig, array $inc): array {
+function _lhMergeSchoolMessages(array $orig, array $inc, string $viewerRole = 'admin', string $viewerId = ''): array {
   $map = [];
   $order = [];
   foreach ($orig as $idx => $m) {
@@ -420,18 +594,43 @@ function _lhMergeSchoolMessages(array $orig, array $inc): array {
     if (!is_array($m) || !isset($m['id'])) continue;
     $id = (string)$m['id'];
     if (!array_key_exists($id, $map)) {
+      if ($viewerRole === 'student' && $viewerId !== '') {
+        if (($m['userId'] ?? '') !== $viewerId) continue;
+        $m['userId'] = $viewerId;
+        $m['role'] = 'student';
+      }
       $order[] = $id;
       $map[$id] = $m;
     } else {
       $om = $map[$id];
+      // Bảo toàn danh tính gốc và nội dung gốc trên máy chủ (vì client không phải admin đã bị ẩn danh / làm rỗng tin thu hồi)
       $merged = array_merge($om, $m);
-      if (!empty($om['deleted']) || !empty($m['deleted'])) {
-        $merged['deleted'] = true;
-        $merged['deletedBy'] = $m['deletedBy'] ?? $om['deletedBy'] ?? null;
-      }
-      if (!empty($om['recalled']) || !empty($m['recalled'])) {
-        $merged['recalled'] = true;
-        $merged['recalledAt'] = $m['recalledAt'] ?? $om['recalledAt'] ?? null;
+      if (isset($om['userId']) && $om['userId'] !== 'anon') $merged['userId'] = $om['userId'];
+      if (isset($om['realName'])) $merged['realName'] = $om['realName'];
+      if (isset($om['realClass'])) $merged['realClass'] = $om['realClass'];
+      if (isset($om['role'])) $merged['role'] = $om['role'];
+      if (!empty($om['text']) && ($m['text'] ?? '') === '') $merged['text'] = $om['text'];
+      if (!empty($om['attachments']) && empty($m['attachments'])) $merged['attachments'] = $om['attachments'];
+
+      if ($viewerRole === 'student') {
+        $merged['deleted'] = !empty($om['deleted']);
+        $merged['deletedBy'] = $om['deletedBy'] ?? null;
+        if (($om['userId'] ?? '') === $viewerId && (!empty($om['recalled']) || !empty($m['recalled']))) {
+          $merged['recalled'] = true;
+          $merged['recalledAt'] = $m['recalledAt'] ?? $om['recalledAt'] ?? null;
+        } else {
+          $merged['recalled'] = !empty($om['recalled']);
+          $merged['recalledAt'] = $om['recalledAt'] ?? null;
+        }
+      } else {
+        if (!empty($om['deleted']) || !empty($m['deleted'])) {
+          $merged['deleted'] = true;
+          $merged['deletedBy'] = $m['deletedBy'] ?? $om['deletedBy'] ?? null;
+        }
+        if (!empty($om['recalled']) || !empty($m['recalled'])) {
+          $merged['recalled'] = true;
+          $merged['recalledAt'] = $m['recalledAt'] ?? $om['recalledAt'] ?? null;
+        }
       }
       $map[$id] = $merged;
     }
@@ -444,7 +643,7 @@ function _lhMergeSchoolMessages(array $orig, array $inc): array {
 }
 
 function _lhMergeChatThreads(array $orig, array $inc, string $viewerRole, bool $allowDelete = false): array {
-  if ($allowDelete && $viewerRole !== 'student') {
+  if ($allowDelete && $viewerRole === 'admin') {
     return $inc;
   }
   $origMap = [];
@@ -463,6 +662,10 @@ function _lhMergeChatThreads(array $orig, array $inc, string $viewerRole, bool $
       continue;
     }
     if (!isset($incMap[$id])) {
+      // Nếu giáo viên xóa 1 cuộc trò chuyện thuộc về mình khi allowDelete = true
+      if ($allowDelete && $viewerRole === 'teacher') {
+        continue;
+      }
       $out[] = $origMap[$id];
       continue;
     }
@@ -494,6 +697,9 @@ function _lhMergeChatThreads(array $orig, array $inc, string $viewerRole, bool $
       } else {
         $om = $msgMap[$mid];
         $mm = array_merge($om, $m);
+        // Bảo toàn nội dung gốc trên máy chủ nếu tin nhắn đã bị thu hồi (vì client không phải admin chỉ giữ chuỗi rỗng)
+        if (!empty($om['text']) && ($m['text'] ?? '') === '') $mm['text'] = $om['text'];
+        if (!empty($om['attachments']) && empty($m['attachments'])) $mm['attachments'] = $om['attachments'];
         if (!empty($om['recalled']) || !empty($m['recalled'])) {
           $mm['recalled'] = true;
           $mm['recalledAt'] = $m['recalledAt'] ?? $om['recalledAt'] ?? null;
@@ -520,6 +726,10 @@ function _lhMergeChatThreads(array $orig, array $inc, string $viewerRole, bool $
       if (isset($msgMap[$mid])) $mergedMsgs[] = $msgMap[$mid];
     }
     $merged = array_merge($ot, $it);
+    if (isset($ot['ownerKey'])) $merged['ownerKey'] = $ot['ownerKey'];
+    if ($viewerRole !== 'student' && array_key_exists('studentId', $ot)) {
+      $merged['studentId'] = $ot['studentId'];
+    }
     $merged['messages'] = $mergedMsgs;
     $lastAt = count($mergedMsgs) > 0 ? (string)($mergedMsgs[count($mergedMsgs) - 1]['at'] ?? '') : '';
     $merged['updatedAt'] = max((string)($ot['updatedAt'] ?? ''), (string)($it['updatedAt'] ?? ''), $lastAt);
@@ -621,7 +831,7 @@ function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer, bool $a
       }
     }
     if (isset($incoming['schoolChat']['messages']) && is_array($incoming['schoolChat']['messages'])) {
-      $currentDb['schoolChat']['messages'] = _lhMergeSchoolMessages($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages']);
+      $currentDb['schoolChat']['messages'] = _lhMergeSchoolMessages($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages'], 'student', $uid);
     }
     if (isset($incoming['schoolChat']['warnings']) && is_array($incoming['schoolChat']['warnings'])) {
       foreach ($incoming['schoolChat']['warnings'] as $wUid => $wCnt) {
@@ -649,11 +859,25 @@ function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer, bool $a
   }
   foreach (['counseling', 'teacherChat'] as $tk) {
     if (isset($incoming[$tk]) && is_array($incoming[$tk])) {
-      $incoming[$tk] = _lhMergeChatThreads($currentDb[$tk] ?? [], $incoming[$tk], $role, $allowDelete);
+      if ($role === 'teacher') {
+        // Giáo viên chỉ giữ trong bản local các thread của chính mình; khi lưu lại phải giữ nguyên các thread của giáo viên khác
+        $otherThreads = array_values(array_filter(
+          $currentDb[$tk] ?? [],
+          fn($t) => ($tk === 'teacherChat' ? ($t['teacherId'] ?? '') : ($t['counselorId'] ?? '')) !== $uid
+        ));
+        $myOrigThreads = array_values(array_filter(
+          $currentDb[$tk] ?? [],
+          fn($t) => ($tk === 'teacherChat' ? ($t['teacherId'] ?? '') : ($t['counselorId'] ?? '')) === $uid
+        ));
+        $mergedMine = _lhMergeChatThreads($myOrigThreads, $incoming[$tk], 'teacher', $allowDelete);
+        $incoming[$tk] = array_merge($mergedMine, $otherThreads);
+      } else {
+        $incoming[$tk] = _lhMergeChatThreads($currentDb[$tk] ?? [], $incoming[$tk], $role, $allowDelete);
+      }
     }
   }
   if (isset($incoming['schoolChat']['messages']) && is_array($incoming['schoolChat']['messages'])) {
-    $incoming['schoolChat']['messages'] = _lhMergeSchoolMessages($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages']);
+    $incoming['schoolChat']['messages'] = _lhMergeSchoolMessages($currentDb['schoolChat']['messages'] ?? [], $incoming['schoolChat']['messages'], $role, $uid);
   }
   if (!$allowDelete) {
     foreach (['reports', 'notifications', 'alerts', 'moods', 'surveyResponses', 'quizAttempts', 'scamChecks', 'feedback', 'unlockRequests', 'aiLogs'] as $k) {
@@ -668,7 +892,7 @@ function _lhMergeSave(array $currentDb, array $incoming, ?array $viewer, bool $a
 // ============================================================================
 //  XỬ LÝ CÁC HÀNH ĐỘNG TRONG GÓI NHỊ PHÂN ĐÃ MÃ HÓA
 // ============================================================================
-$dbData = _lhLoadRawDb($dbFile, $backupDir);
+$dbData = _lhLoadRawDb($dbFile, $backupDir, $secret);
 if ($dbData && !is_file($backupDir . '/daily-' . date('Ymd') . '.json')) {
   $initJson = json_encode($dbData, JSON_UNESCAPED_UNICODE);
   if ($initJson !== false) {
@@ -697,8 +921,8 @@ if ($action === 'verify-pw') {
       if ($realTag !== '' && hash_equals($realTag, $tag)) {
         $ts = time();
         $uid = (string)$u['id'];
-        $sig = hash_hmac('sha256', $uid . '|' . $ts, $secret . '|pwproof');
-        _lhSendPkt(['ok' => true, 'valid' => true, 'userId' => $uid, 'proof' => $uid . '.' . $ts . '.' . $sig], $pktKey);
+        $sig = hash_hmac('sha256', $salt . '|' . $realTag . '|' . $ts, $secret . '|pwproof');
+        _lhSendPkt(['ok' => true, 'valid' => true, 'userId' => $uid, 'proof' => $salt . '.' . $ts . '.' . $sig], $pktKey);
       }
     }
   }
@@ -716,26 +940,40 @@ if ($action === 'sign-token') {
   }
   $targetUser = null;
   foreach ($dbData['users'] as $u) {
-    if (($u['id'] ?? '') === $sub) { $targetUser = $u; break; }
+    if (strcasecmp((string)($u['id'] ?? ''), $sub) === 0) { $targetUser = $u; break; }
   }
   if (!$targetUser || !empty($targetUser['locked'])) {
     _lhSendPkt(['ok' => false, 'error' => 'Unauthorized'], $pktKey, 403);
   }
+  $sub = (string)$targetUser['id'];
+  $payload['sub'] = $sub;
   $authorized = false;
   if ($proof !== '' && substr_count($proof, '.') === 2) {
-    [$pUid, $pTs, $pSig] = explode('.', $proof, 3);
-    if ($pUid === $sub && abs(time() - (int)$pTs) <= 120) {
-      $expected = hash_hmac('sha256', $pUid . '|' . $pTs, $secret . '|pwproof');
-      if (hash_equals($expected, $pSig)) $authorized = true;
+    [$pKey, $pTs, $pSig] = explode('.', $proof, 3);
+    if (abs(time() - (int)$pTs) <= 300) {
+      // Xác thực bằng chứng (salt, realTag) của chính tài khoản đích (hỗ trợ cả tài khoản tạo hàng loạt dùng chung salt/hash)
+      $th = (string)($targetUser['passwordHash'] ?? '');
+      $needle = '$' . $pKey . '$';
+      $pos = strpos($th, $needle);
+      if ($pos !== false) {
+        $targetTag = substr($th, $pos + strlen($needle));
+        $expected = hash_hmac('sha256', $pKey . '|' . $targetTag . '|' . $pTs, $secret . '|pwproof');
+        if ($targetTag !== '' && hash_equals($expected, $pSig)) $authorized = true;
+      }
+      // Tương thích ngược với định dạng proof theo userId
+      if (!$authorized && strcasecmp($pKey, $sub) === 0) {
+        $expectedUid = hash_hmac('sha256', $pKey . '|' . $pTs, $secret . '|pwproof');
+        if (hash_equals($expectedUid, $pSig)) $authorized = true;
+      }
     }
   }
-  if (!$authorized && $viewer && ($viewer['id'] ?? '') === $sub) {
+  if (!$authorized && $viewer && strcasecmp((string)($viewer['id'] ?? ''), $sub) === 0) {
     $authorized = true;
   }
   if (!$authorized && !empty($req['faceHash'])) {
     $fh = (string)$req['faceHash'];
     foreach ($dbData['faceKeys'] ?? [] as $fk) {
-      if (($fk['userId'] ?? '') === $sub && hash_equals((string)($fk['hash'] ?? ''), $fh)) {
+      if (strcasecmp((string)($fk['userId'] ?? ''), $sub) === 0 && hash_equals((string)($fk['hash'] ?? ''), $fh)) {
         $authorized = true;
         break;
       }
@@ -746,7 +984,9 @@ if ($action === 'sign-token') {
   }
   // Luôn lấy role từ cơ sở dữ liệu gốc trên máy chủ (chống giả mạo quyền admin)
   $payload['role'] = $targetUser['role'];
-  $payload['v'] = isset($targetUser['tokenVersion']) ? (int)$targetUser['tokenVersion'] : 1;
+  $dbVer = isset($targetUser['tokenVersion']) ? (int)$targetUser['tokenVersion'] : 1;
+  $reqVer = isset($payload['v']) ? (int)$payload['v'] : $dbVer;
+  $payload['v'] = ($reqVer >= $dbVer && $reqVer <= $dbVer + 1) ? $reqVer : $dbVer;
   $signed = _lhSignToken($payload, $ttl, $secret);
   _lhSendPkt(['ok' => true, 'token' => $signed['token'], 'payload' => $signed['payload']], $pktKey);
 }
@@ -808,7 +1048,7 @@ if ($action === 'save') {
   }
   $allowDelete = !empty($req['allowDelete']);
   $merged = $dbData ? _lhMergeSave($dbData, $incoming, $viewer, $allowDelete) : $incoming;
-  $mtime = _lhSaveRawDb($dbFile, $merged, $revFile, $backupDir);
+  $mtime = _lhSaveRawDb($dbFile, $merged, $revFile, $backupDir, $secret);
   if (!$mtime) {
     _lhSendPkt(['ok' => false, 'error' => 'Không thể lưu dữ liệu.'], $pktKey, 500);
   }
@@ -830,7 +1070,7 @@ if (strpos($action, 'backup-') === 0) {
   }
   if ($action === 'backup-create') {
     if (!$dbData) _lhSendPkt(['ok' => false, 'error' => 'Chưa có dữ liệu.'], $pktKey, 400);
-    $json = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+    $json = json_encode(_lhEncryptChatAtRest($dbData, $secret), JSON_UNESCAPED_UNICODE);
     $name = $json !== false ? _lhCreateBackupSnapshot($backupDir, $json, 'manual', 30) : '';
     _lhSendPkt(['ok' => true, 'created' => $name, 'items' => _lhListBackups($backupDir)], $pktKey);
   }
@@ -846,7 +1086,7 @@ if (strpos($action, 'backup-') === 0) {
     $srcData = $dbData;
     if ($id !== '' && substr($id, -5) === '.json' && is_file($backupDir . '/' . $id)) {
       $d = json_decode((string)@file_get_contents($backupDir . '/' . $id), true);
-      if (is_array($d) && isset($d['users'])) $srcData = $d;
+      if (is_array($d) && isset($d['users'])) $srcData = _lhDecryptChatFromRest($d, $secret);
     }
     $safe = $srcData ? _lhFilterDataForViewer($srcData, $viewer) : null;
     _lhSendPkt(['ok' => true, 'id' => $id ?: ('backup-' . date('Ymd-His') . '.json'), 'backup' => $safe], $pktKey);
@@ -861,12 +1101,13 @@ if (strpos($action, 'backup-') === 0) {
     if (!is_array($restored) || !isset($restored['users']) || !is_array($restored['users'])) {
       _lhSendPkt(['ok' => false, 'error' => 'Tệp sao lưu không hợp lệ.'], $pktKey, 400);
     }
+    $restored = _lhDecryptChatFromRest($restored, $secret);
     if ($dbData) {
-      $preJson = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+      $preJson = json_encode(_lhEncryptChatAtRest($dbData, $secret), JSON_UNESCAPED_UNICODE);
       if ($preJson !== false) _lhCreateBackupSnapshot($backupDir, $preJson, 'pre-restore', 30);
       $restored['users'] = _lhRestoreRealHashes($dbData['users'] ?? [], $restored['users']);
     }
-    $mtime = _lhSaveRawDb($dbFile, $restored, $revFile, $backupDir);
+    $mtime = _lhSaveRawDb($dbFile, $restored, $revFile, $backupDir, $secret);
     $filtered = _lhFilterDataForViewer($restored, $viewer);
     _lhSendPkt(['ok' => true, 'mtime' => $mtime, 'data' => $filtered, 'items' => _lhListBackups($backupDir)], $pktKey);
   }
@@ -875,12 +1116,13 @@ if (strpos($action, 'backup-') === 0) {
     if (!is_array($restored) || !isset($restored['users']) || !is_array($restored['users'])) {
       _lhSendPkt(['ok' => false, 'error' => 'Tệp sao lưu tải lên không hợp lệ.'], $pktKey, 400);
     }
+    $restored = _lhDecryptChatFromRest($restored, $secret);
     if ($dbData) {
-      $preJson = json_encode($dbData, JSON_UNESCAPED_UNICODE);
+      $preJson = json_encode(_lhEncryptChatAtRest($dbData, $secret), JSON_UNESCAPED_UNICODE);
       if ($preJson !== false) _lhCreateBackupSnapshot($backupDir, $preJson, 'pre-restore', 30);
       $restored['users'] = _lhRestoreRealHashes($dbData['users'] ?? [], $restored['users']);
     }
-    $mtime = _lhSaveRawDb($dbFile, $restored, $revFile, $backupDir);
+    $mtime = _lhSaveRawDb($dbFile, $restored, $revFile, $backupDir, $secret);
     $filtered = _lhFilterDataForViewer($restored, $viewer);
     _lhSendPkt(['ok' => true, 'mtime' => $mtime, 'data' => $filtered, 'items' => _lhListBackups($backupDir)], $pktKey);
   }

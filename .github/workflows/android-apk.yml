@@ -69,12 +69,13 @@ jobs:
 
       - name: Đặt tên tệp APK
         run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk "LeHoan-ShareLove.apk"
           cp android/app/build/outputs/apk/debug/app-debug.apk "Tu-van-tam-ly-hoc-duong.apk"
           cp android/app/build/outputs/apk/debug/app-debug.apk "LeHoan-$(node -p "require('./package.json').version").apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Tu-van-tam-ly-hoc-duong-APK
+          name: LeHoan-ShareLove-APK
           path: mobile/*.apk
           retention-days: 30
 
@@ -84,6 +85,6 @@ jobs:
         run: |
           gh release delete apk-latest --repo "${{ github.repository }}" --yes || true
           git push origin :refs/tags/apk-latest || true
-          gh release create apk-latest "Tu-van-tam-ly-hoc-duong.apk" --repo "${{ github.repository }}" --title "Tư vấn tâm lý học đường - APK Android" --notes "Ứng dụng Android **Tư vấn tâm lý học đường** (Trường THPT Lê Hoàn) — kết nối trực tiếp https://tuvantamlihocduonglehoan.com/mobile"
+          gh release create apk-latest "LeHoan-ShareLove.apk" "Tu-van-tam-ly-hoc-duong.apk" --repo "${{ github.repository }}" --title "LeHoan ShareLove - APK Android" --notes "Ứng dụng Android **LeHoan ShareLove** (Trường THPT Lê Hoàn) — kết nối trực tiếp https://tuvantamlihocduonglehoan.com/mobile"
 
 

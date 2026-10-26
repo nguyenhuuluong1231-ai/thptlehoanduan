@@ -3,14 +3,14 @@
 // - Trên giao diện mobile (/mobile, khung điện thoại hoặc màn hình nhỏ): gộp chung Học sinh · Giáo viên · Quản trị, bỏ CAPTCHA, thiết kế nhỏ gọn.
 import { api, session, setPortal, detect, getMode, showError, ApiError } from './core/api.js';
 import { icon, drumArt } from './core/icons.js';
-import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, installApp, aboutPortalHtml } from './core/ui.js';
+import { $, $$, esc, toast, store, modal, withBusy, initTheme, initDevToolsGuard, toggleTheme, sleep, avatar, apiBase, isNativeApp, isStandalone, installApp, aboutPortalHtml, openFooterSettingsModal } from './core/ui.js';
 
 initTheme(); initDevToolsGuard();
 const root = $('#root');
 const urlPortal = new URLSearchParams(location.search).get('portal');
 const portal = (document.body.dataset.portal === 'staff' || document.body.dataset.portal === 'admin' || urlPortal === 'staff' || urlPortal === 'admin') ? 'staff' : 'student';
 const STAFF = portal === 'staff';
-const IS_MOBILE = window.self !== window.top || isNativeApp() || /[?&]mobile/.test(location.search);
+const IS_MOBILE = window.self !== window.top || isNativeApp() || isStandalone() || /[?&]mobile/.test(location.search);
 setPortal(portal);
 document.title = IS_MOBILE
   ? 'Đăng nhập · Cổng Học Đường Số Trường THPT Lê Hoàn'
@@ -58,10 +58,23 @@ async function loadCaptcha() {
 
 function renderStudentFooter(s) {
   const creator = s.creatorName || 'Vũ Nguyễn An Khang';
+  const orgSub = s.orgSub || 'SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH GIA LAI';
+  const socialLabel = s.socialLabel || 'KẾT NỐI NHÀ TRƯỜNG';
+  const countryLabel = s.countryLabel || 'Việt Nam';
+  const verifiedTitle = s.verifiedTitle || 'ĐÃ ĐĂNG KÝ';
+  const verifiedSub = s.verifiedSub || 'CỔNG HỌC ĐƯỜNG SỐ';
+  const introTitle = s.introCardTitle || 'GIỚI THIỆU TRANG WEB';
   const intro = s.siteIntro || 'Cổng Học Đường Số Trường THPT Lê Hoàn là nền tảng trực tuyến hỗ trợ học sinh tố giác vi phạm ẩn danh, tư vấn tâm lý học đường 24/7, kết nối thầy cô, thi trắc nghiệm pháp luật và tích hợp trí tuệ nhân tạo (AI) phòng chống lừa đảo không gian mạng.';
+  const phoneTitle = s.phoneCardTitle || 'HOTLINE & KHẨN CẤP 24/7';
   const phone = s.contactPhone || '0269 3846 359 · Khẩn cấp: 111';
+  const phoneSub = s.contactPhoneSub || 'Tiếp nhận hỗ trợ & tư vấn trực tuyến';
+  const emailTitle = s.emailCardTitle || 'HỘP THƯ ĐIỆN TỬ';
   const email = s.contactEmail || 'thptlehoan@sgddt.gialai.gov.vn';
+  const emailSub = s.contactEmailSub || 'Ban Giám hiệu & Tổ Tư vấn học đường';
+  const addrTitle = s.addressCardTitle || 'ĐỊA CHỈ NHÀ TRƯỜNG';
   const address = s.contactAddress || 'Đường Trần Hưng Đạo, Thị trấn Chư Ty, Huyện Đức Cơ, Tỉnh Gia Lai, Việt Nam';
+  const addrSub = s.contactAddressSub || 'Sở Giáo dục và Đào tạo tỉnh Gia Lai';
+  const copyText = s.copyrightText || `© ${new Date().getFullYear()} ${s.schoolName || 'Trường THPT Lê Hoàn'}. All rights reserved`;
   return `
   <footer class="login-corp-footer">
     <div class="lcf-inner">
@@ -70,7 +83,7 @@ function renderStudentFooter(s) {
           <img src="${esc(s.logo || 'assets/school_logo.png')}" alt="" class="lcf-org-logo">
           <div class="lcf-org-titles">
             <h3 class="lcf-org-title">${esc((s.schoolName || 'TRƯỜNG THPT LÊ HOÀN').toUpperCase())}</h3>
-            <span class="lcf-org-sub">SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH GIA LAI</span>
+            <span class="lcf-org-sub">${esc(orgSub)}</span>
           </div>
           <span class="lcf-head-sep"></span>
           <button type="button" class="lcf-creator-pill" data-lcf-modal="about" title="Xem giới thiệu chi tiết về trang web & tác giả">
@@ -80,7 +93,7 @@ function renderStudentFooter(s) {
 
         <div class="lcf-social-bar">
           <div class="lcf-social-group">
-            <span class="lcf-eyebrow">KẾT NỐI NHÀ TRƯỜNG</span>
+            <span class="lcf-eyebrow">${esc(socialLabel)}</span>
             <div class="lcf-social-icons">
               <a href="${esc(s.facebookUrl || 'https://facebook.com')}" target="_blank" rel="noopener" class="lcf-s-btn fb" title="Facebook Trường THPT Lê Hoàn" aria-label="Facebook">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.77l-.44 2.89h-2.33v6.99A10 10 0 0 0 22 12z"/></svg>
@@ -95,13 +108,13 @@ function renderStudentFooter(s) {
           </div>
           <div class="lcf-lang-box" title="Ngôn ngữ hiển thị: Tiếng Việt">
             <svg viewBox="0 0 28 20" width="18" height="13" style="border-radius:2.5px;flex:none"><rect width="28" height="20" fill="#da251d"/><polygon points="14,4 15.8,9.5 21.5,9.5 16.9,12.8 18.6,18.3 14,15 9.4,18.3 11.1,12.8 6.5,9.5 12.2,9.5" fill="#ffff00"/></svg>
-            <span>Việt Nam</span>
+            <span>${esc(countryLabel)}</span>
           </div>
           <div class="lcf-verified-pill" title="Đã đăng ký & xác thực hệ thống Cổng Học Đường Số">
             <span class="lcf-v-ico"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
             <div class="lcf-v-txt">
-              <b>ĐÃ ĐĂNG KÝ</b>
-              <span>CỔNG HỌC ĐƯỜNG SỐ</span>
+              <b>${esc(verifiedTitle)}</b>
+              <span>${esc(verifiedSub)}</span>
             </div>
           </div>
         </div>
@@ -112,7 +125,7 @@ function renderStudentFooter(s) {
           <span class="lcf-ic-ico">${icon('info')}</span>
           <div class="lcf-ic-body">
             <div class="lcf-ic-head">
-              <span class="lcf-ic-lbl">GIỚI THIỆU TRANG WEB</span>
+              <span class="lcf-ic-lbl">${esc(introTitle)}</span>
               <button type="button" class="lcf-intro-more" data-lcf-modal="about">Xem chi tiết →</button>
             </div>
             <p class="lcf-ic-desc">${esc(intro)}</p>
@@ -122,27 +135,27 @@ function renderStudentFooter(s) {
         <div class="lcf-info-card">
           <span class="lcf-ic-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2z"/></svg></span>
           <div class="lcf-ic-body">
-            <span class="lcf-ic-lbl">HOTLINE & KHẨN CẤP 24/7</span>
+            <span class="lcf-ic-lbl">${esc(phoneTitle)}</span>
             <b class="lcf-ic-val">${esc(phone)}</b>
-            <span class="lcf-ic-sub">Tiếp nhận hỗ trợ & tư vấn trực tuyến</span>
+            <span class="lcf-ic-sub">${esc(phoneSub)}</span>
           </div>
         </div>
 
         <div class="lcf-info-card">
           <span class="lcf-ic-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4.2-8 5-8-5V6l8 5 8-5v2.2z"/></svg></span>
           <div class="lcf-ic-body">
-            <span class="lcf-ic-lbl">HỘP THƯ ĐIỆN TỬ</span>
+            <span class="lcf-ic-lbl">${esc(emailTitle)}</span>
             <a href="mailto:${esc(email)}" class="lcf-ic-val link">${esc(email)}</a>
-            <span class="lcf-ic-sub">Ban Giám hiệu & Tổ Tư vấn học đường</span>
+            <span class="lcf-ic-sub">${esc(emailSub)}</span>
           </div>
         </div>
 
         <div class="lcf-info-card">
           <span class="lcf-ic-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>
           <div class="lcf-ic-body">
-            <span class="lcf-ic-lbl">ĐỊA CHỈ NHÀ TRƯỜNG</span>
+            <span class="lcf-ic-lbl">${esc(addrTitle)}</span>
             <b class="lcf-ic-val">${esc(address)}</b>
-            <span class="lcf-ic-sub">Sở Giáo dục và Đào tạo tỉnh Gia Lai</span>
+            <span class="lcf-ic-sub">${esc(addrSub)}</span>
           </div>
         </div>
       </div>
@@ -151,7 +164,7 @@ function renderStudentFooter(s) {
     <div class="lcf-bot">
       <div class="lcf-bot-inner">
         <div class="lcf-copy">
-          <span>© ${new Date().getFullYear()} ${esc(s.schoolName || 'Trường THPT Lê Hoàn')}. All rights reserved</span>
+          <span>${esc(copyText)}</span>
           <span class="sep">·</span>
           <button type="button" class="lcf-plink" data-lcf-modal="about">Giới thiệu trang web</button>
           <span class="sep">·</span>
@@ -161,8 +174,9 @@ function renderStudentFooter(s) {
           <span class="sep">·</span>
           <button type="button" class="lcf-plink" data-lcf-modal="cookies">Cài đặt cookies</button>
         </div>
-        <div class="lcf-bot-right">
+        <div class="lcf-bot-right" style="display:flex;align-items:center;gap:10px">
           <span>Trang web này được tạo bởi <b>${esc(creator)}</b></span>
+          ${(store.get('lh_token_staff') || store.get('lh_token_admin')) ? `<span class="sep">·</span><button type="button" class="lcf-plink" id="editFooterDirect" style="color:var(--brand);font-weight:700">${icon('edit')} Sửa thông tin</button>` : ''}
         </div>
       </div>
     </div>
@@ -353,16 +367,31 @@ function bind() {
   $('#theme').onclick = () => toggleTheme();
   if ($('#srv')) $('#srv').onclick = serverDialog;
   $$('[data-store-install]').forEach(b => b.onclick = () => installApp());
+  if ($('#editFooterDirect')) {
+    $('#editFooterDirect').onclick = () => {
+      setPortal('staff');
+      openFooterSettingsModal(settings, {
+        api,
+        showError,
+        onSaved: (nextSettings) => {
+          settings = { ...settings, ...nextSettings };
+          setPortal(portal);
+          render();
+        },
+      });
+    };
+  }
   $$('[data-lcf-modal]').forEach(b => b.onclick = () => {
     const k = b.dataset.lcfModal;
     if (k === 'about') {
       modal({ title: 'Giới thiệu trang web & Tác giả', sub: `Trang web này được tạo bởi ${settings?.creatorName || 'Vũ Nguyễn An Khang'}`, size: 'xwide', body: aboutPortalHtml(settings), foot: '<button class="btn" data-close>Đóng</button>' });
       return;
     }
+    const fmtModalText = (txt, fallback) => txt ? txt.split('\n').filter(Boolean).map(p => `<p class="ink2">${esc(p)}</p>`).join('') : fallback;
     const info = {
-      terms: ['Điều khoản & Pháp lý', `<p class="ink2">Cổng Học Đường Số được xây dựng và vận hành phục vụ công tác giáo dục, tư vấn tâm lý và bảo đảm an toàn trường học tại <b>${esc(settings?.schoolName || 'Trường THPT Lê Hoàn')}</b>.</p><p class="small muted">Học sinh sử dụng đúng mã số cá nhân, không chia sẻ mật khẩu và tuân thủ quy tắc ứng xử văn minh trên không gian mạng.</p>`],
-      privacy: ['Chính sách bảo vệ dữ liệu cá nhân', `<p class="ink2">Mọi thông tin cá nhân, nhật ký cảm xúc, nội dung tư vấn tâm lý và hồ sơ tố giác ẩn danh của học sinh đều được mã hóa ở tầng ứng dụng (ECDH P-256 + AES-256-GCM) và bảo mật tuyệt đối.</p><p class="small muted">Nhà trường chỉ sử dụng dữ liệu nhằm mục đích hỗ trợ, bảo vệ học sinh và nâng cao chất lượng giáo dục theo quy định hiện hành.</p>`],
-      cookies: ['Cài đặt Cookies & Lưu trữ phiên', `<p class="ink2">Hệ thống chỉ sử dụng bộ nhớ cục bộ (LocalStorage / SessionStorage) cần thiết để duy trì phiên đăng nhập an toàn, chế độ giao diện Sáng/Tối và bảo vệ tài khoản khi không hoạt động.</p><p class="small muted">Không sử dụng bất kỳ cookie quảng cáo hay theo dõi của bên thứ ba.</p>`],
+      terms: ['Điều khoản & Pháp lý', fmtModalText(settings?.termsContent, `<p class="ink2">Cổng Học Đường Số được xây dựng và vận hành phục vụ công tác giáo dục, tư vấn tâm lý và bảo đảm an toàn trường học tại <b>${esc(settings?.schoolName || 'Trường THPT Lê Hoàn')}</b>.</p><p class="small muted">Học sinh sử dụng đúng mã số cá nhân, không chia sẻ mật khẩu và tuân thủ quy tắc ứng xử văn minh trên không gian mạng.</p>`)],
+      privacy: ['Chính sách bảo vệ dữ liệu cá nhân', fmtModalText(settings?.privacyContent, `<p class="ink2">Mọi thông tin cá nhân, nhật ký cảm xúc, nội dung tư vấn tâm lý và hồ sơ tố giác ẩn danh của học sinh đều được mã hóa ở tầng ứng dụng (ECDH P-256 + AES-256-GCM) và bảo mật tuyệt đối.</p><p class="small muted">Nhà trường chỉ sử dụng dữ liệu nhằm mục đích hỗ trợ, bảo vệ học sinh và nâng cao chất lượng giáo dục theo quy định hiện hành.</p>`)],
+      cookies: ['Cài đặt Cookies & Lưu trữ phiên', fmtModalText(settings?.cookiesContent, `<p class="ink2">Hệ thống chỉ sử dụng bộ nhớ cục bộ (LocalStorage / SessionStorage) cần thiết để duy trì phiên đăng nhập an toàn, chế độ giao diện Sáng/Tối và bảo vệ tài khoản khi không hoạt động.</p><p class="small muted">Không sử dụng bất kỳ cookie quảng cáo hay theo dõi của bên thứ ba.</p>`)],
     }[k];
     if (info) modal({ title: info[0], body: info[1], foot: '<button class="btn" data-close>Đã hiểu</button>' });
   });

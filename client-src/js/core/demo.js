@@ -84,7 +84,7 @@ const cryptoProvider = {
   hashPassword,
   async verifyPassword(password, stored) {
     if (!stored) return false;
-    if (remoteSync && String(stored).endsWith(MASKED_SUFFIX)) {
+    if (remoteSync && String(stored).startsWith('$argon2id$')) {
       const parsed = parsePhc(stored);
       if (!parsed) return false;
       const pw = enc.encode(String(password));
@@ -96,6 +96,9 @@ const cryptoProvider = {
           return true;
         }
       } catch { /* bỏ qua */ }
+      if (!String(stored).endsWith(MASKED_SUFFIX)) {
+        return baseVerifyPassword(password, stored);
+      }
       return false;
     }
     return baseVerifyPassword(password, stored);
@@ -517,7 +520,8 @@ export async function init(getTokenFn) {
 export async function handle(req) {
   await new Promise(r => setTimeout(r, remoteSync ? 5 : (60 + Math.random() * 90)));
   if (req.body && typeof req.body === 'object' && !req.body.device) req.body.device = (navigator.userAgent || '').slice(0, 120);
-  activeReqToken = req.token || null;
+  const isLoginPath = /\/auth\/(login|face\/login|unlock-request)$/.test(req.path || '');
+  activeReqToken = isLoginPath ? null : (req.token || null);
   const queued = [];
   pendingEmits = queued;
   try {

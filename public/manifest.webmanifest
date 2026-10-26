@@ -1,15 +1,15 @@
 {
-  "name": "THPT Lê Hoàn · Cổng Học Đường Số",
-  "short_name": "Lê Hoàn",
+  "name": "LeHoan ShareLove · THPT Lê Hoàn",
+  "short_name": "LeHoan ShareLove",
   "description": "Tố giác ẩn danh, tư vấn tâm lý, chat với thầy cô, trợ lý AI và tra cứu lừa đảo cho học sinh THPT Lê Hoàn.",
   "lang": "vi",
-  "id": "./app.html",
-  "start_url": "./app.html",
+  "id": "./index.html?mobile=1",
+  "start_url": "./index.html?mobile=1",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f4f6fb",
-  "theme_color": "#ffffff",
+  "theme_color": "#1747c9",
   "categories": ["education", "social"],
   "icons": [
     { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
@@ -17,8 +17,8 @@
     { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Tố giác ẩn danh", "url": "./app.html#report", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Tin nhắn", "url": "./app.html#inbox", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Trợ lý AI", "url": "./app.html#ai", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Tố giác ẩn danh", "url": "./app.html?mobile=1#report", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Tin nhắn", "url": "./app.html?mobile=1#inbox", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Trợ lý AI", "url": "./app.html?mobile=1#ai", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

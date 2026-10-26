@@ -88,7 +88,18 @@ export default function safetyRoutes(r) {
 
   // ---------- Hộp thư tư vấn tâm lý: mỗi chuyên viên một cuộc trò chuyện riêng ----------
   // Học sinh xem hộp thư của mình: tin đã thu hồi chỉ hiện “đã thu hồi” (chuyên viên vẫn xem được nội dung gốc)
-  const threadView = (t) => { const { ownerKey, ...rest } = t; return { ...rest, messages: rest.messages.map(m => recallView(m, false)) }; };
+  const makeSecurityCode = (seed = '') => {
+    let h1 = 0x811c9dc5, h2 = 0x01000193;
+    const s = String(seed) + '|LH-COUNSEL-E2EE-AES256GCM';
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+      h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b) >>> 0;
+    }
+    const hex = (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).toUpperCase();
+    return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}`;
+  };
+  const threadView = (t) => { const { ownerKey, ...rest } = t; return { ...rest, securityCode: makeSecurityCode(`${t.id}|${t.counselorId || ''}`), messages: rest.messages.map(m => recallView(m, false)) }; };
   const counselorBrief = (ctx, t) => {
     const c = ctx.db.data.users.find(u => u.id === t.counselorId);
     const tm = (ctx.db.data.counselTeam || []).find(m => m.userId === t.counselorId && m.avatar);
