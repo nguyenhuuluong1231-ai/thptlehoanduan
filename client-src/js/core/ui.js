@@ -1037,7 +1037,7 @@ export function renderAboutPage(view, { head, settings, api, canEdit = false, on
   draw(settings || {});
 }
 
-// ---------- Bảo mật Box Chat & Tin nhắn Học sinh ↔ Thầy cô (E2EE + PIN Lock + Chống nhìn trộm + Chống chụp màn hình Đen toàn bộ) ----------
+// ---------- Bảo mật Box Chat & Tin nhắn Học sinh ↔ Thầy cô (E2EE + PIN Lock + Chống nhìn trộm) ----------
 function ensureChatSecurityStyles() {
   if (typeof document === 'undefined' || document.getElementById('lh-chat-sec-css')) return;
   const st = document.createElement('style');
@@ -1067,223 +1067,8 @@ function ensureChatSecurityStyles() {
     .pin-pad-btn.sub{font-size:11.5px;font-weight:600;color:var(--muted)}
     @keyframes lhPinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
     .pin-shake{animation:lhPinShake .35s ease}
-    #lh-ss-blackout{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;background:#000000 !important;z-index:2147483647 !important;display:none;transition:none !important;pointer-events:auto !important;user-select:none !important}
-    html.lh-ss-active,html.lh-ss-active body{background:#000000 !important;transition:none !important}
-    html.lh-ss-active body > *:not(#lh-ss-blackout){visibility:hidden !important;opacity:0 !important;filter:brightness(0) !important;transition:none !important}
-    html.lh-ss-active #lh-ss-blackout{display:block !important}
-    @media print{html,body{background:#000000 !important}body *{visibility:hidden !important;opacity:0 !important}}
   `;
   document.head.appendChild(st);
-  try {
-    if (window.top && window.top !== window && window.top.document && !window.top.document.getElementById('lh-chat-sec-css')) {
-      const tst = window.top.document.createElement('style');
-      tst.id = 'lh-chat-sec-css';
-      tst.textContent = st.textContent;
-      window.top.document.head.appendChild(tst);
-    }
-  } catch { /* cross-origin safe */ }
-}
-
-let _blackPngBlobPromise = null;
-function getBlackPngBlob() {
-  if (_blackPngBlobPromise) return _blackPngBlobPromise;
-  _blackPngBlobPromise = new Promise((resolve) => {
-    try {
-      const cv = document.createElement('canvas');
-      cv.width = 1920;
-      cv.height = 1080;
-      const ctx = cv.getContext('2d');
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, cv.width, cv.height);
-      cv.toBlob((b) => resolve(b), 'image/png');
-    } catch {
-      resolve(null);
-    }
-  });
-  return _blackPngBlobPromise;
-}
-
-async function overwriteClipboardWithBlackImage() {
-  try {
-    if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
-      const blob = await getBlackPngBlob();
-      if (blob) {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-        return;
-      }
-    }
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText('');
-    }
-  } catch {
-    try { await navigator.clipboard?.writeText?.(''); } catch { /* ignore */ }
-  }
-}
-
-let _antiSsInstalled = false;
-let _antiSsTimer = 0;
-let _lastToastTs = 0;
-
-function isChatRouteActive() {
-  const h = (location.hash || '').slice(1).split('/')[0];
-  if (['school-chat', 'teacher-chat', 'counseling', 'chatmod'].includes(h)) return true;
-  if (document.querySelector('.chat-body, .school-chat-card, .chat-layout')) return true;
-  try {
-    if (window.top && window.top !== window) {
-      const th = (window.top.location.hash || '').slice(1).split('/')[0];
-      if (['school-chat', 'teacher-chat', 'counseling', 'chatmod'].includes(th)) return true;
-    }
-  } catch { /* ignore */ }
-  return false;
-}
-
-export const isAntiScreenshotOn = (uid) => !uid || localStorage.getItem(`lh_chat_antiss_${uid}`) !== '0';
-
-function setDomBlackout(active) {
-  const docs = [document];
-  try {
-    if (window.top && window.top !== window && window.top.document) docs.push(window.top.document);
-  } catch { /* ignore */ }
-  for (const d of docs) {
-    let veil = d.getElementById('lh-ss-blackout');
-    if (!veil && d.body) {
-      veil = d.createElement('div');
-      veil.id = 'lh-ss-blackout';
-      veil.onclick = () => restoreFromBlackout();
-      d.body.appendChild(veil);
-    }
-    if (active) {
-      d.documentElement.classList.add('lh-ss-active');
-      if (veil) veil.style.display = 'block';
-    } else {
-      d.documentElement.classList.remove('lh-ss-active');
-      if (veil) veil.style.display = 'none';
-    }
-  }
-}
-
-export function triggerScreenshotBlackout(reason = '', holdMs = 1800) {
-  ensureChatSecurityStyles();
-  clearTimeout(_antiSsTimer);
-  setDomBlackout(true);
-  overwriteClipboardWithBlackImage();
-  if (holdMs > 0) {
-    _antiSsTimer = setTimeout(() => {
-      const topFocused = (() => {
-        try { return window.top.document.hasFocus(); } catch { return document.hasFocus(); }
-      })();
-      if (topFocused && !document.hidden) {
-        setDomBlackout(false);
-        if (reason && Date.now() - _lastToastTs > 2500) {
-          _lastToastTs = Date.now();
-          toast('🛡️ Chống chụp màn hình: Đã chuyển màn hình sang màu đen để bảo vệ tin nhắn.', 'warn', 3200);
-        }
-      }
-    }, holdMs);
-  }
-}
-
-function restoreFromBlackout() {
-  clearTimeout(_antiSsTimer);
-  setDomBlackout(false);
-}
-
-function installAntiScreenshotListeners() {
-  if (_antiSsInstalled || typeof window === 'undefined') return;
-  _antiSsInstalled = true;
-  ensureChatSecurityStyles();
-  getBlackPngBlob();
-
-  const shouldProtect = () => isChatRouteActive() && isAntiScreenshotOn(window._lhChatUid || '');
-
-  const onKey = (e) => {
-    if (!shouldProtect()) return;
-    const k = e.key || '';
-    const code = e.code || '';
-    const kc = e.keyCode || e.which || 0;
-    const isPrtSc = k === 'PrintScreen' || code === 'PrintScreen' || kc === 44 || k === 'Snapshot';
-    const isWinShiftS = (e.metaKey && e.shiftKey && ['s', 'S', '3', '4', '5', '6'].includes(k));
-    const isMetaKey = k === 'Meta' || k === 'OS' || e.metaKey;
-    const isCtrlShiftCap = (e.ctrlKey && e.shiftKey && ['s', 'S', 'p', 'P', 'i', 'I', 'x', 'X'].includes(k));
-    const isCtrlAltCap = (e.ctrlKey && e.altKey && ['a', 'A', 's', 'S', 'p', 'P'].includes(k));
-    const isCtrlP = ((e.ctrlKey || e.metaKey) && (k === 'p' || k === 'P'));
-
-    if (isPrtSc || isWinShiftS || isMetaKey || isCtrlShiftCap || isCtrlAltCap || isCtrlP) {
-      if (isPrtSc || isWinShiftS || isCtrlShiftCap || isCtrlP) {
-        e.preventDefault?.();
-        e.stopPropagation?.();
-      }
-      triggerScreenshotBlackout(isMetaKey ? '' : 'blocked', isMetaKey ? 1400 : 2200);
-    }
-  };
-
-  const onWindowBlur = () => {
-    if (!shouldProtect()) return;
-    // Khi công cụ chụp màn hình (Snipping Tool Win+Shift+S, Zalo, Lightshot, App Switcher) vừa kích hoạt,
-    // cửa sổ lập tức mất tiêu điểm -> phủ đen toàn bộ màn hình #000000 ngay tức thì (0ms)
-    const stillInsideSameApp = (() => {
-      try {
-        return window.top !== window && (window.top.document.hasFocus() || document.hasFocus());
-      } catch {
-        return false;
-      }
-    })();
-    if (!stillInsideSameApp) {
-      setDomBlackout(true);
-    }
-  };
-
-  const onWindowFocus = () => {
-    restoreFromBlackout();
-  };
-
-  const onVisChange = () => {
-    if (document.hidden && shouldProtect()) {
-      setDomBlackout(true);
-    } else if (!document.hidden) {
-      restoreFromBlackout();
-    }
-  };
-
-  const onTouchStart = (e) => {
-    if (!shouldProtect()) return;
-    // Chặn thao tác vuốt 3 ngón tay chụp màn hình trên điện thoại Android / iOS
-    if (e.touches && e.touches.length >= 3) {
-      triggerScreenshotBlackout('blocked', 2200);
-    }
-  };
-
-  const bindTarget = (win) => {
-    try {
-      win.addEventListener('keydown', onKey, true);
-      win.addEventListener('keyup', onKey, true);
-      win.addEventListener('blur', onWindowBlur, true);
-      win.addEventListener('focus', onWindowFocus, true);
-      win.addEventListener('pointerdown', () => {
-        if (win.document.hasFocus()) restoreFromBlackout();
-      }, true);
-      win.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
-      win.document.addEventListener('visibilitychange', onVisChange, true);
-    } catch { /* ignore */ }
-  };
-
-  bindTarget(window);
-  if (window.top && window.top !== window) bindTarget(window.top);
-
-  // Chặn API quay/chụp màn hình trình duyệt (getDisplayMedia) khi đang ở trong khung chat
-  try {
-    if (navigator.mediaDevices?.getDisplayMedia && !navigator.mediaDevices._lhGuarded) {
-      const origGdm = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
-      navigator.mediaDevices._lhGuarded = true;
-      navigator.mediaDevices.getDisplayMedia = async function (...args) {
-        if (shouldProtect()) {
-          triggerScreenshotBlackout('blocked', 3000);
-          throw new Error('Chính sách bảo mật không cho phép quay hoặc chụp màn hình tin nhắn.');
-        }
-        return origGdm(...args);
-      };
-    }
-  } catch { /* ignore */ }
 }
 
 const hashPin = (pin, uid) => {
@@ -1356,10 +1141,9 @@ export function lockChatSession(uid) {
 
 export function bindPrivacyBlurBody(cb, uid) {
   ensureChatSecurityStyles();
-  installAntiScreenshotListeners();
   window._lhChatUid = uid || '';
   try {
-    window.AndroidSecurity?.setSecureScreen?.(isAntiScreenshotOn(uid));
+    window.AndroidSecurity?.setSecureScreen?.(false);
   } catch { /* ignore */ }
   if (!cb) return;
   cb.classList.toggle('chat-privacy-blur', isChatBlurOn(uid));
@@ -1375,26 +1159,23 @@ export function bindPrivacyBlurBody(cb, uid) {
 
 export function chatSecurityBannerHtml({ securityCode = '', isAnon = false, channel = 'chat', userId = '' } = {}) {
   ensureChatSecurityStyles();
-  installAntiScreenshotListeners();
   window._lhChatUid = userId || '';
   const shortCode = securityCode ? securityCode.slice(0, 9) : 'AES-256';
   const blurOn = isChatBlurOn(userId);
   const pinSet = isChatPinSet(userId);
-  const antiSsOn = isAntiScreenshotOn(userId);
   const modeLabel = channel === 'school'
-    ? (isAnon ? 'Ẩn danh HMAC · Chống chụp MH' : 'Mã hóa E2EE · Chống chụp MH')
-    : (isAnon ? 'Ẩn danh 2 lớp · Chống chụp MH' : 'Mã hóa E2EE · Chống chụp MH');
+    ? (isAnon ? 'Ẩn danh HMAC' : 'Mã hóa E2EE')
+    : (isAnon ? 'Ẩn danh 2 lớp' : 'Mã hóa E2EE');
   return `<div class="chat-sec-bar">
     <div class="sec-left">
-      <span class="sec-dot" title="Đang mã hóa AES-256-GCM & Chống chụp màn hình"></span>
+      <span class="sec-dot" title="Đang mã hóa AES-256-GCM"></span>
       <span class="truncate"><b>Bảo mật AES-256-GCM</b> · ${esc(modeLabel)}</span>
       ${securityCode ? `<span class="sec-code hide-sm" title="Mã vân tay bảo mật: ${esc(securityCode)}">${ icon('lock') } ${esc(shortCode)}</span>` : ''}
-      ${antiSsOn ? `<span class="badge ok hide-sm" style="font-size:10px;padding:1px 6px" title="Khi chụp màn hình, toàn bộ màn hình sẽ chuyển sang màu đen">${icon('shieldCheck')} Chống chụp MH</span>` : ''}
       ${blurOn ? `<span class="badge violet" style="font-size:10px;padding:1px 6px">${icon('eyeOff')} Chống nhìn trộm</span>` : ''}
     </div>
     <div class="sec-actions">
       ${pinSet && channel !== 'school' ? `<button type="button" class="chat-sec-btn warn" data-chat-lock-now title="Khóa hộp thư ngay bằng mã PIN">${icon('lock')} Khóa ngay</button>` : ''}
-      <button type="button" class="chat-sec-btn" data-chat-sec-open title="Xem chứng nhận mã hóa, chống chụp màn hình đen, cài đặt mã PIN khóa tin nhắn & chống nhìn trộm">${icon('shieldCheck')} Bảo mật${pinSet ? ' · PIN Bật' : ''}</button>
+      <button type="button" class="chat-sec-btn" data-chat-sec-open title="Xem chứng nhận mã hóa, cài đặt mã PIN khóa tin nhắn & chống nhìn trộm">${icon('shieldCheck')} Bảo mật${pinSet ? ' · PIN Bật' : ''}</button>
     </div>
   </div>`;
 }
@@ -1655,29 +1436,12 @@ export function openChatSecurityModal({ channel = 'teacher', title = 'Bảo mậ
   const drawBody = (m, close) => {
     const pinSet = isChatPinSet(userId);
     const blurOn = isChatBlurOn(userId);
-    const antiSsOn = isAntiScreenshotOn(userId);
     m.querySelector('.modal-body').innerHTML = `<div class="stack" style="gap:14px">
       <div class="card soft pad row nowrap" style="gap:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--ok) 12%,var(--surface)),var(--surface));border-color:color-mix(in srgb,var(--ok) 30%,var(--line))">
         <span class="avatar sq" style="background:var(--ok);color:#fff;flex:none">${icon('shieldCheck')}</span>
         <div class="grow" style="min-width:0">
           <div class="row between"><b class="small" style="color:var(--ok)">Đang bảo vệ đa tầng · Chuẩn mã hóa Quân sự</b><span class="badge ok">Hoạt động 100%</span></div>
-          <p class="xs ink2" style="margin:3px 0 0">Toàn bộ tin nhắn và tệp đính kèm trong <b>${esc(title)}</b>${peerName ? ` với <b>${esc(peerName)}</b>` : ''} được mã hóa trên đường truyền, lưu trữ mã hóa và chống chụp màn hình đen toàn bộ.</p>
-        </div>
-      </div>
-
-      <div class="card pad stack" style="gap:10px;background:#09090b;color:#ffffff;border:1px solid #27272a">
-        <div class="row between" style="gap:10px">
-          <div class="row" style="gap:10px">
-            <span class="avatar sm sq" style="background:#ef4444;color:#fff;flex:none">${icon('eyeOff')}</span>
-            <div>
-              <div class="row" style="gap:6px"><b class="small" style="color:#fff">Chống chụp màn hình · Đen toàn bộ (#000000)</b><span class="badge" style="background:#22c55e;color:#fff;border:none">${antiSsOn ? 'ĐANG BẬT' : 'ĐANG TẮT'}</span></div>
-              <div class="xs" style="color:#a1a1aa;margin-top:2px">Khi nhấn phím <b>PrintScreen</b>, <b>Win+Shift+S</b>, công cụ cắt màn hình, vuốt 3 ngón tay hoặc chuyển cửa sổ để chụp, toàn bộ màn hình sẽ chuyển thành <b>màu đen tuyệt đối (#000000)</b> và ghi đè ảnh đen vào bộ nhớ tạm.</div>
-            </div>
-          </div>
-          <label class="switch" style="flex:none"><input type="checkbox" id="secAntiSsToggle" ${antiSsOn ? 'checked' : ''}><span class="track"></span></label>
-        </div>
-        <div class="row" style="gap:8px;justify-content:flex-end;border-top:1px solid #27272a;padding-top:8px">
-          <button type="button" class="btn sm" id="secTestBlackout" style="background:#ef4444;border-color:#ef4444;color:#fff">${icon('eyeOff')} Thử chụp màn hình (Xem màn hình đen)</button>
+          <p class="xs ink2" style="margin:3px 0 0">Toàn bộ tin nhắn và tệp đính kèm trong <b>${esc(title)}</b>${peerName ? ` với <b>${esc(peerName)}</b>` : ''} được mã hóa trên đường truyền và lưu trữ mã hóa an toàn.</p>
         </div>
       </div>
 
@@ -1731,16 +1495,6 @@ export function openChatSecurityModal({ channel = 'teacher', title = 'Bảo mậ
     </div>`;
 
     $('#secCopyCode', m).onclick = () => copyText(code, 'Đã sao chép mã vân tay bảo mật');
-    $('#secAntiSsToggle', m).onchange = (e) => {
-      if (e.target.checked) localStorage.removeItem(`lh_chat_antiss_off_${userId}`);
-      else localStorage.setItem(`lh_chat_antiss_off_${userId}`, '1');
-      toast(e.target.checked ? 'Đã bật Chống chụp màn hình (Đen toàn bộ).' : 'Đã tạm tắt Chống chụp màn hình.', 'ok', 2000);
-      drawBody(m, close);
-      onChanged?.();
-    };
-    $('#secTestBlackout', m).onclick = () => {
-      triggerScreenshotBlackout('test', 3000);
-    };
     $('#secBlurToggle', m).onchange = (e) => {
       if (e.target.checked) localStorage.setItem(`lh_chat_blur_${userId}`, '1');
       else localStorage.removeItem(`lh_chat_blur_${userId}`);

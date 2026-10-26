@@ -1,6 +1,6 @@
 {
   "name": "lehoan-portal-mobile",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "App Android (APK) Cổng Học Đường Số THPT Lê Hoàn — dùng chung máy chủ và dữ liệu với trang web",
   "type": "module",

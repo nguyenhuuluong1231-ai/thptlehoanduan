@@ -90,41 +90,16 @@ if (fs.existsSync(gradle)) {
   console.log(`✓ Phiên bản ${v} (${code}) kèm chữ ký số cố định`);
 }
 
-// 4) MainActivity.java — Bật FLAG_SECURE chống chụp màn hình (Màn hình đen toàn bộ trên Android)
+// 4) MainActivity.java — Mặc định BridgeActivity chuẩn (đã gỡ bỏ FLAG_SECURE chống chụp màn hình)
 const pkgId = capCfg.appId || 'vn.edu.lehoan.tuvantamly';
 const mainActPath = path.join(app, 'src', 'main', 'java', ...pkgId.split('.'), 'MainActivity.java');
 if (fs.existsSync(mainActPath)) {
-  const secureJava = `package ${pkgId};
+  const cleanJava = `package ${pkgId};
 
-import android.os.Bundle;
-import android.view.WindowManager;
-import android.webkit.JavascriptInterface;
 import com.getcapacitor.BridgeActivity;
 
-public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        // Mặc định bật FLAG_SECURE và cung cấp cầu nối JS để khóa chụp màn hình đen toàn bộ ở màn hình Tin nhắn
-        try {
-            if (this.bridge != null && this.bridge.getWebView() != null) {
-                this.bridge.getWebView().addJavascriptInterface(new Object() {
-                    @JavascriptInterface
-                    public void setSecureScreen(final boolean on) {
-                        runOnUiThread(() -> {
-                            if (on) {
-                                getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-                            } else {
-                                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-                            }
-                        });
-                    }
-                }, "AndroidSecurity");
-            }
-        } catch (Exception ignored) {}
-    }
-}
+public class MainActivity extends BridgeActivity {}
 `;
-  fs.writeFileSync(mainActPath, secureJava);
-  console.log('✓ MainActivity.java: tích hợp FLAG_SECURE chống chụp màn hình đen toàn bộ');
+  fs.writeFileSync(mainActPath, cleanJava);
+  console.log('✓ MainActivity.java: BridgeActivity chuẩn (cho phép chụp màn hình bình thường)');
 }
